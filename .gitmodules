@@ -1,3 +1,6 @@
 [submodule "pddlgym_planners"]
 	path = pddlgym_planners
 	url = https://github.com/ronuchit/pddlgym_planners
+[submodule "goal-plan-recognition-dataset"]
+	path = goal-plan-recognition-dataset
+	url = https://github.com/pucrs-automated-planning/goal-plan-recognition-dataset
