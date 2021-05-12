@@ -1,10 +1,43 @@
+import sys
+print(sys.path)
 import pddlgym
+from pddlgym_planners.fd import FD
 
 class EnvManager:
     def __init__(self, envname):
         self.env = self.create_env(envname)
-        pass
+        self.initial_obs = None
+        self.current_obs = None
+        self.planner = None
 
     def create_env(self, envname):
-        pddlgym.
-        pass
+        env = pddlgym.make(f'PDDLEnv{envname}-v0')
+
+    def reset(self, problem=None):
+        if problem:
+            self.env.fix_problem_index(problem)
+        obs, info = self.env.reset()
+        self.initial_obs = obs
+        self.current_obs = obs
+        self.current_info = info
+        return obs, info
+
+    def problems(self):
+        return self.env.problems
+
+    def plan(self):
+        if self.planner is None:
+            self.planner = FD()
+        plan = self.planner(self.env.domain, self.initial_obs)
+        return plan
+
+    def execute_action(self, a):
+        obs, r, done, info = self.env.step(a)
+        self.current_obs = obs
+
+    def execute_plan(self, plan):
+        obss = []
+        for a in plan:
+            obs, r, done, info = self.env.step(a)
+            obss.append(obs)
+        return obss

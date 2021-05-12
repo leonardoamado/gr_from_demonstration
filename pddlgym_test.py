@@ -5,6 +5,7 @@ from pddlgym_planners.ff import FF
 env = pddlgym.make("PDDLEnvSokoban-v0")
 env.fix_problem_index(2)
 obs, debug_info = env.reset()
+print(env.observation_space.__dict__)
 planner = FF()
 plan = planner(env.domain, obs)
 for act in plan:
