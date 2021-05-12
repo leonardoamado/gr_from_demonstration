@@ -6,7 +6,7 @@ import operator
 class FeatureExtractor(torch.nn.Module):
     # in_shape = 64x64x1
     def __init__(self, im_shape):
-        super(TestModel, self).__init__()
+        super(FeatureExtractor, self).__init__()
         self.out_units = 128
         self.conv1 = torch.nn.Conv2d(1, 64, 5, 1)
         self.conv2 = torch.nn.Conv2d(64, 64, 3, 1)
@@ -25,7 +25,7 @@ class FeatureExtractor(torch.nn.Module):
         return x
 
 
-# t = TestModel((64,64))
+# t = FeatureExtractor((64,64))
 # print(t.parameter_count())
 
 class PolicyHead(torch.nn.Module):
@@ -34,9 +34,7 @@ class PolicyHead(torch.nn.Module):
     or should it be a value head?
     """
     def __init__(self):
-
-
-    pass
+        pass
 
 class Discriminator(torch.nn.Module):
     def __init__(self, units):

@@ -31,7 +31,7 @@ class EnvManager:
         plan = self.planner(self.env.domain, self.initial_obs)
         return plan
 
-    def execute_action(self, a):
+    def step(self, a):
         obs, r, done, info = self.env.step(a)
         self.current_obs = obs
 

@@ -10,3 +10,4 @@ planner = FF()
 plan = planner(env.domain, obs)
 for act in plan:
     obs, reward, done, info = env.step(act)
+    print(info)

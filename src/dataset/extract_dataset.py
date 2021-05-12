@@ -36,8 +36,8 @@ def extract(envname, ignore_noisy=True, obs=['100']):
                     _extract(f)
 
 def _extract(tar):
-    for f in tar.next():
-        if  f.name
+    # for f in tar.next():
+        # if f.name
     pass
 
 def _add_hypothesis(template_file, hyp_file):
