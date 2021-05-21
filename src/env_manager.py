@@ -5,13 +5,10 @@ from pddlgym_planners.fd import FD
 
 class EnvManager:
     def __init__(self, envname):
-        self.env = self.create_env(envname)
+        self.env = pddlgym.make(f'PDDLEnv{envname}-v0')
         self.initial_obs = None
         self.current_obs = None
         self.planner = None
-
-    def create_env(self, envname):
-        env = pddlgym.make(f'PDDLEnv{envname}-v0')
 
     def reset(self, problem=None):
         if problem:
@@ -41,3 +38,6 @@ class EnvManager:
             obs, r, done, info = self.env.step(a)
             obss.append(obs)
         return obss
+
+    def render(self):
+        return self.env.render()
