@@ -13,46 +13,66 @@ from pddlgym_planners.fd import FD
 
 import pddlgym
 
-env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=True)
-# obs, _ = env.reset()
-# env.fix_problem_index(0)
-# learner = TabularQLearner(env, obs, problem=1)
-# learner.learn()
-# obs, _ = env.reset()
-# done = False
+env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=False)
 
 train = True
 policies = []
+n_goals = 4
 
-for n in range(3):
+actions = None
+
+for n in range(n_goals):
     time.sleep(3)
     env.fix_problem_index(n)
     obs, _ = env.reset()
-    policy = TabularQLearner(env, obs, problem=n)
+    if not actions:
+        actions = list(env.action_space.all_ground_literals(obs, valid_only=False))
+    policy = TabularQLearner(env, obs, problem=n, action_list=actions)
     policies.append(policy)
     if train:
+        done = False
         print(f"Training policy for goal {n}")
-        policy.learn()
+        while not done:
+            try:
+                policy.learn()
+                done = True
+            except ValueError:
+                obs, _ = env.reset()
+                policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
+                policy = policies[-1]
         # policy.save_q_table(f"policies/p{n}.pickle")
     else:
         policy.load_q_table(f"policies/p{n}.pickle")
 
 planner = FD()
 
+epsilons = [0., 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
 
-for n in range(3):
+for n in range(n_goals):
     env.fix_problem_index(n)
     obs, _ = env.reset()
     print(f"PLANNING FOR GOAL {obs.goal}")
     plan = planner(env.domain, obs)
-    traj = [obs]
+
+    # traj is an action pair tuple, need to map this to state action number pair
+    traj = []
     for a in plan:
+        state_action_pair = (obs.literals, a)
+        traj.append(state_action_pair)
         obs, _, _, _ = env.step(a)
-        traj.append(obs)
-    d1 = m.kl_divergence_per_plan_state(traj, policies[n].q_table, policies[0].q_table)
-    d2 = m.kl_divergence_per_plan_state(traj, policies[n].q_table, policies[1].q_table)
-    d3 = m.kl_divergence_per_plan_state(traj, policies[n].q_table, policies[2].q_table)
-    m.plot(n, d1, d2, d3)
+    ds = {}
+    for eps in epsilons:
+        d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
+        d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
+        d3 = m.kl_divergence_norm(traj, policies[2].q_table, actions, epsilon=eps)
+        d4 = m.kl_divergence_norm(traj, policies[3].q_table, actions, epsilon=eps)
+        if f'p{n}' not in ds:
+            ds[f'p{n}'] = []
+        ds[f'p{n}'].append([d1, d2, d3, d4])
+        # m.plot_traj_policy_divergence(n, eps, d1)
+        m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
+
+    # m.plot(n, d1, d2, d3)
 
 
 # print(obs)1

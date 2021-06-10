@@ -1,4 +1,12 @@
+.vscode/
+
 *.pyc
+__pycache__/
+
+# planners downloaded from pddlgym_planners
 FF-v2.3/
 FD/
-.vscode/
+
+
+gr_datasets/
+
