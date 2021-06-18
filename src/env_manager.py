@@ -1,5 +1,6 @@
 import sys
 print(sys.path)
+sys.path.append('../')
 import pddlgym
 from pddlgym_planners.fd import FD
 

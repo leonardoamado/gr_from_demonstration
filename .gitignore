@@ -9,4 +9,5 @@ FD/
 
 
 gr_datasets/
-
+logs/
+.DS_Store

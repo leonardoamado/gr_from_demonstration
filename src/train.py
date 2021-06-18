@@ -1,5 +1,6 @@
 from numpy import deg2rad
 from ml.rl import TabularQLearner
+from ml.dqn import DQN
 import json
 import time
 # from ..env_manager import EnvManager
@@ -17,36 +18,49 @@ env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=False)
 
 train = True
 policies = []
-n_goals = 4
+n_goals = 21
+blocks = ['d', 'r', 'a', 'w', 'o', 'e', 'p', 'c']
+robots = 1
+
+offsets = {}
+
+predicates = env.observation_space.predicates
+
+state_representation = []
 
 actions = None
+
+current_method = DQN
 
 for n in range(n_goals):
     time.sleep(3)
     env.fix_problem_index(n)
     obs, _ = env.reset()
     if not actions:
-        actions = list(env.action_space.all_ground_literals(obs, valid_only=False))
-    policy = TabularQLearner(env, obs, problem=n, action_list=actions)
+        actions = list(env.action_space.all_ground_literals(obs, valid_only=True))
+    # policy = TabularQLearner(env, obs, problem=n, action_list=actions)
+    policy = current_method(env, obs, problem=n, action_list=actions)
     policies.append(policy)
     if train:
         done = False
         print(f"Training policy for goal {n}")
         while not done:
-            try:
-                policy.learn()
-                done = True
-            except ValueError:
-                obs, _ = env.reset()
-                policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
-                policy = policies[-1]
+            # try:
+            policy.learn()
+            done = True
+            # except ValueError as e:
+            #     print(e)
+            #     obs, _ = env.reset()
+            #     policies[-1] = current_method(env, obs, problem=n, action_list=actions)
+            #     # policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
+            #     policy = policies[-1]
         # policy.save_q_table(f"policies/p{n}.pickle")
-    else:
-        policy.load_q_table(f"policies/p{n}.pickle")
+    # else:
+    #     policy.load_q_table(f"policies/p{n}.pickle")
 
 planner = FD()
 
-epsilons = [0., 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
+epsilons = [0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
 
 for n in range(n_goals):
     env.fix_problem_index(n)

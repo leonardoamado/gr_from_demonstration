@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import random
+import datetime
 
 from pddlgym.core import InvalidAction
 
@@ -11,6 +12,39 @@ from pddlgym.core import InvalidAction
 # policy gradient
 
 # test value iteration with one traj after learning policies (later)
+
+# hyperparameters tested
+
+# run 1
+#   episodes: 60k
+#   decay: 0.0000002
+#   timesteps: 100
+#   alpha: 0.01
+#   gamma: 0.99 
+#   patience: 40 (needed?)
+#   1, -1, -10
+#   found goal once in some thousand episodes
+#   the -1 for every timestep makes the agent search several states
+#
+# run 2
+#   episodes: 60k
+#   decay: 0.0000002
+#   timesteps: 100
+#   alpha: 0.01
+#   gamma: 0.99 
+#   patience: 40 (needed?)
+#   1, 0, -10
+#   
+#   searches a small space of states because of 0 on every timestep
+#
+# run 3
+#   episodes: 60k
+#   decay: 0.0000003
+#   timesteps: 50
+#   alpha: 0.01
+#   gamma: 0.85
+#   patience: inf
+#   1, -1, -10
 
 
 class RLAgent:
@@ -37,12 +71,12 @@ class TabularQLearner(RLAgent):
                  env,
                  init_obs,
                  problem=None,
-                 episodes=25000,
+                 episodes=60000,
                  decaying_eps=True,
                  eps=0.9,
                  alpha=0.01,
-                 decay=0.000002,
-                 gamma=0.99,
+                 decay=0.0000003,
+                 gamma=0.85,
                  action_list=None,
                  **kwargs):
         self.env = env
@@ -61,7 +95,7 @@ class TabularQLearner(RLAgent):
         self.decay = decay
         self.c_eps = eps
         self.base_eps = eps
-        self.patience = 5
+        self.patience = 40000
         if decaying_eps:
 
             def epsilon():
@@ -113,6 +147,7 @@ class TabularQLearner(RLAgent):
         return self.q_table[state][a]
 
     def learn(self):
+        log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
         done_times = 0
         patience = 0
@@ -131,9 +166,11 @@ class TabularQLearner(RLAgent):
                 try:
                     next_state, r, done, _ = self.env.step(self.action_list[a])
                     next_state = next_state.literals
+                    if r != 1:
+                        r = -1.
                 except InvalidAction:
                     next_state = state
-                    r = 0.
+                    r = -10.
                     done = False
 
                 if done:
@@ -149,7 +186,7 @@ class TabularQLearner(RLAgent):
                 state = next_state
                 tstep += 1
             if (n + 1) % 1000 == 0:
-                print(f'Episode {n} finished. Timestep: {tstep}. Done: {done}. Reached the goal {done_times} times during this interval. Eps = {eps}')
+                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {eps}')
                 if done_times <= 10:
                     patience += 1
                     if patience >= self.patience:
