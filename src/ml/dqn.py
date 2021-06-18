@@ -10,6 +10,7 @@ from torch.nn import functional as F
 import datetime
 from functools import reduce
 from matplotlib import pyplot as plt
+import math
 
 from .base import BaseMethod
 from .memories.inmemory_replay import InMemoryReplay
@@ -65,7 +66,7 @@ class MLP(torch.nn.Module):
         self.optimizer.step()
         return loss.item()
 
-    def next_action(self, state, steps=None):
+    def next_action(self, state, steps=None, q=False):
         """
         returns the next best action
         defined by argmax(self.net.forward())
@@ -78,7 +79,11 @@ class MLP(torch.nn.Module):
             if random.random() <= eps:
                 return random.randint(0, self.n_actions-1)
         qs = self.forward(state)
-        return torch.max(qs, axis=1)[1].cpu().numpy()[0]
+        best_action = torch.max(qs, axis=1)[1].cpu().numpy()[0]
+        if q:
+            return qs, best_action
+        else:
+            return best_action
 
     def eps(self, steps):
         return self.end_eps if steps >= self.anneal_until else \
@@ -281,6 +286,36 @@ class DQN(BaseMethod):
         os.makedirs(scenario_dir, exist_ok=True)
         path = f'{scenario_dir}/{self.net.name}_{scenario}_{time.time()}.pt'
         torch.save(self.net.state_dict(), path)
+
+    def process_state(self, 
+                      obs,
+                      epsilon=0.,
+                      distribution='softmax',
+                      action=True):
+        MIN_VAL = 1e-6
+
+        state = self.build_state(obs)
+        q, a = self.net.next_action(state, q=True)
+        if distribution:
+            q = DQN.build_distribution(q, distribution, epsilon)
+        if action:
+            return q, a
+        else:
+            return q
+
+    @staticmethod
+    def build_distribution(q, distribution_type, epsilon):
+        if distribution_type == 'softmax':
+            return DQN.softmax(q)
+        elif distribution_type == 'epsilon_greedy':
+            num_actions = len(q)
+            e_greedy = [1e-6 + epsilon/num_actions for _ in range(len(q))]
+            e_greedy[np.argmax(q)] = 1 - epsilon - 1e-6 * num_actions
+            return e_greedy
+
+    @staticmethod
+    def softmax(qs):
+        return [(math.exp(q))/sum([math.exp(_q) for _q in qs]) for q in qs]
 
     # def build_action(self, a):
     #     return [1 if a == i else 0 for i in range(self.net.actions)]

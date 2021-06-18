@@ -11,6 +11,9 @@ from numpy.core.fromnumeric import mean
 def kl_divergence(p1, p2):
     return sum(p1[i] * log2(p1[i]/p2[i]) for i in range(len(p1)))
 
+# def generic_kl_divergence_per_plan_state(trajectory, policy, epsilon=0., actions=24):
+    
+
 def kl_divergence_per_plan_state(trajectory, p1, p2, epsilon=0., actions=24):
     p1 = values_to_policy(p1, epsilon)
     p2 = values_to_policy(p2, epsilon)
@@ -27,6 +30,16 @@ def kl_divergence_per_plan_state(trajectory, p1, p2, epsilon=0., actions=24):
         qp2 = p2[state]
         per_state_divergence.append(kl_divergence(qp1, qp2))
     return per_state_divergence
+
+
+def kl_divergence_norm_generic(traj, policy, actions, epsilon=0.):
+    policy_trajectory = traj_to_policy(traj, actions)
+    distances = []
+    for i, state in enumerate(policy_trajectory):
+        q_trajectory = policy_trajectory[state]
+        q_policy = policy.process_state(state, epsilon=epsilon, distribution=True, action=True)
+        distances.append(kl_divergence(q_trajectory, q_policy))
+    return distances
 
 
 def kl_divergence_norm(traj, p, actions, epsilon=0.):
