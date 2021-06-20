@@ -21,15 +21,13 @@ class MLP(torch.nn.Module):
     def __init__(self, state_size, num_actions, start_eps=0.9, end_eps=0.1):
         super(MLP, self).__init__()
         self.state_size = state_size
+        self.device = torch.device(f"cuda" if torch.cuda.is_available()
+                                   else "cpu")
         self.fc1 = torch.nn.Linear(state_size, 128)
         self.fc2 = torch.nn.Linear(128, 256)
         self.fc3 = torch.nn.Linear(256, 128)
         self.fc4 = torch.nn.Linear(128, num_actions)
-        self.loss = torch.nn.MSELoss()
-        print(self.fc4)
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
-        self.device = torch.device(f"cuda:{0}" if torch.cuda.is_available()
-                                   else "cpu")
+        print(self.device)
         print(num_actions, ' THIIIIS IS THE NUMBER OF ACTIONS')
         self.num_actions = num_actions
         self.start_eps = start_eps
@@ -37,7 +35,13 @@ class MLP(torch.nn.Module):
         self.anneal_until = 200000
         self.gamma = 0.99
 
+        self.to(self.device)
+        self.loss = torch.nn.MSELoss()
+        print(self.fc4)
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+
     def forward(self, x):
+        x = x.to(self.device)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
@@ -140,6 +144,7 @@ class DQN(BaseMethod):
 
         self.extract_offsets()
         self.net = MLP(self.state_size, len(action_list))
+        # self.net = self.net.to(self.net.device)
         # self.train_skip = 8
         # print(f'RND has {self.rnd.count_parameters()} parameters.')
 
