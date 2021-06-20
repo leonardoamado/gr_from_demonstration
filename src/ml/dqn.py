@@ -3,6 +3,7 @@ import operator
 import random
 import numpy as np
 from collections import deque
+from pddlgym.core import InvalidAction
 import time
 import os
 from torch.utils.tensorboard import SummaryWriter
@@ -17,32 +18,49 @@ from .memories.inmemory_replay import InMemoryReplay
 from . import common
 
 class MLP(torch.nn.Module):
-    def __init__(self, state_size, num_actions):
+    def __init__(self, state_size, num_actions, start_eps=0.9, end_eps=0.1):
         super(MLP, self).__init__()
+        self.state_size = state_size
         self.fc1 = torch.nn.Linear(state_size, 128)
         self.fc2 = torch.nn.Linear(128, 256)
         self.fc3 = torch.nn.Linear(256, 128)
-        self.fc3 = torch.nn.Linear(128, num_actions)
+        self.fc4 = torch.nn.Linear(128, num_actions)
         self.loss = torch.nn.MSELoss()
+        print(self.fc4)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
         self.device = torch.device(f"cuda:{0}" if torch.cuda.is_available()
                                    else "cpu")
-
-        self.anneal_until = 300000
+        print(num_actions, ' THIIIIS IS THE NUMBER OF ACTIONS')
+        self.num_actions = num_actions
+        self.start_eps = start_eps
+        self.end_eps = end_eps
+        self.anneal_until = 200000
+        self.gamma = 0.99
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
+        x = self.fc4(x)
+        x = torch.squeeze(x)
         return x
 
     def target_q(self, qs, qs_p, qs_p_target, a, r, t):
         f_q = np.copy(qs)
+        qs_p = np.squeeze(qs_p)
+        qs = np.squeeze(qs)
         q = np.argmax(qs_p, axis=1)
-        for _i, _t in enumerate(t):
+        f_q = np.squeeze(f_q)
+        qs_p_target = np.squeeze(qs_p_target)
+        for _i, done in enumerate(t):
             _r = r[_i]
             _a = a[_i]
-            f_q[_i, _a] = _r if _t else _r + qs_p_target[_i, q[_i]] * self.gamma
+            # temporary fix for
+            # IndexError: index 33 is out of bounds for axis 1 with size 1
+            # squeeze tensor, removing 1-sized dimensions
+
+            d = qs_p_target[_i, q[_i]]
+            f_q[_i, _a] = _r if done else _r + qs_p_target[_i, q[_i]] * self.gamma
         return f_q
 
     def train(self, batch, target=None):
@@ -55,7 +73,7 @@ class MLP(torch.nn.Module):
             qs_future = self.forward(next_state_torch)
             # qs_future_target = target.forward(next_state_torch).cpu().data.numpy()
             qs_future_numpy = qs_future.cpu().data.numpy()
-        self.optim.zero_grad()
+        self.optimizer.zero_grad()
         state_torch = torch.from_numpy(s).type(torch.FloatTensor).to(self.device)
         qs = self.forward(state_torch)
         qs_numpy = qs.cpu().data.numpy()
@@ -77,9 +95,9 @@ class MLP(torch.nn.Module):
             eps = self.eps(steps)
             # eps = self.eps_exp(steps)
             if random.random() <= eps:
-                return random.randint(0, self.n_actions-1)
+                return random.randint(0, self.num_actions-1)
         qs = self.forward(state)
-        best_action = torch.max(qs, axis=1)[1].cpu().numpy()[0]
+        best_action = torch.argmax(qs, axis=0).cpu().detach().numpy()
         if q:
             return qs, best_action
         else:
@@ -107,9 +125,9 @@ class DQN(BaseMethod):
         self.test_memory = InMemoryReplay(size=self.params['dry_size'], input_shape=self.params['input_shape'])
         self.curr_state = deque(maxlen=self.params['history'])
         self.next_state = deque(maxlen=self.params['history'])
-        self.net = MLP(90, len(action_list))
         self.average_qs = []
         self.max_timesteps = 50
+        self.number_of_skips = 5
 
         self.predicates = env.observation_space.predicates
 
@@ -118,17 +136,20 @@ class DQN(BaseMethod):
         if action_list is None:
             self.action_list = list(env.action_space.all_ground_literals(state, valid_only=False))
         else:
-            self.actions = action_list
+            self.action_list = action_list
 
         self.extract_offsets()
+        self.net = MLP(self.state_size, len(action_list))
         # self.train_skip = 8
         # print(f'RND has {self.rnd.count_parameters()} parameters.')
 
+    def clear_memories(self):
+        self.memory.clear()
+        self.test_memory.clear()
 
     def build_state(self, obs):
-        state = [0. for _ in range(self.state_length)]
+        state = [0. for _ in range(self.state_size)]
         ground_literals = obs[0]
-        print(ground_literals)
         for lit in ground_literals:
             base_offset = self.offsets[lit.predicate.name]
             var_offset = 1
@@ -137,27 +158,25 @@ class DQN(BaseMethod):
                     var_offset *= self.blocks.index(v.name)
                 else:
                     var_offset = 0
-            print('Offsets:',base_offset, var_offset, base_offset + var_offset)
+            # print('Offsets:',base_offset, var_offset, base_offset + var_offset)
             state[base_offset + var_offset] = 1.
-        return state
+        return torch.FloatTensor(state)
 
     def extract_offsets(self):
         offsets = {}
         i = 0
         for pred in self.predicates:
-            print(pred.__dict__)
             offsets[pred.name] = i
             num_lits = 1
             for t in pred.var_types:
                 if t == 'block':
                     num_lits *= len(self.blocks)
             i += num_lits
-        self.state_length = i
+        self.state_size = i
         self.offsets = offsets
 
-    def literal_from_vector(self, vector):
-        max_q_value = np.argmax(vector)
-        return self.actions[max_q_value]
+    def literal_from_vector(self, action):
+        return self.action_list[action]
 
     def loss(self, qs, qs_p, qs_p_target, a, r, t):
         # torch.from_numpy
@@ -179,8 +198,6 @@ class DQN(BaseMethod):
             pass
 
     def learn(self):
-        # init doom env
-        # load config
         training_steps = 1
         skip = 0
         print(f'Training model {type(self.net).__name__}. Parameters: {self.net.parameter_count():,d}.')
@@ -203,15 +220,27 @@ class DQN(BaseMethod):
                 state = self.build_state(obs)
 
                 _a = self.net.next_action(state, training_steps)
-                action = self.literal_from_bits(_a)
+                if _a >= 80:
+                    print('adding this fucking thing', _a)
+                action = self.literal_from_vector(_a)
+                # print(action)
                 # r = self.apply_action(a)
                 # i_r = self.rnd_reward(s).detach().clamp(-1., 1.).item()
                 # r = self.normalize_reward(r)
                 # r_combined = r + i_r
                 # print(r_combined)
 
-                obs, r, done, _ = self.env.step(action)
-                next_state = self.bit_from_obs(obs)
+                try:
+
+                    obs, r, done, _ = self.env.step(action)
+                    if done:
+                        print('GOAL REACHED POGGERS')
+                        r = 100.
+                    else:
+                        r = -1.
+                except InvalidAction:
+                    r = -10.
+                next_state = self.build_state(obs)
                 # if done:
                 #     next_state = state
                 # else:
@@ -219,14 +248,15 @@ class DQN(BaseMethod):
 
                 # s_p = self.state_to_net_state(next_state, self.next_state)
 
-                self.memory.add_transition(state, action, next_state, r, done)
+                self.memory.add_transition(state, _a, next_state, r, done)
 
-                if skip == self.train_skip:
+                if skip == self.number_of_skips:
                     batch = self.memory.get_batch(self.batch_size)
                     if not batch:
                         continue
 
-                    loss = self.net.train(batch, self.target_net)
+                    # loss = self.net.train(batch, self.target_net)
+                    loss = self.net.train(batch)
                     episode_loss += loss
                     # self.train_rnd(batch[0])
                     training_steps += 1
@@ -244,13 +274,15 @@ class DQN(BaseMethod):
                 episode_r += r
 
             elapsed_time = time.time() - start_time
-            avg_q = self.average_q_test()
-            self.write_tensorboard(writer, episode_loss, episode_r, avg_q)
-            self.average_qs.append(avg_q)
-            print(f'Episode {episode} ended. Time to process: {elapsed_time}. Reward earned: {episode_r}. Episode loss: {episode_loss}. Avg. Q after episode: {avg_q}')
+            # avg_q = self.average_q_test()
+            # self.write_tensorboard(writer, episode_loss, episode_r, avg_q)
+            # self.average_qs.append(avg_q)
+            if (episode + 1) % 1000 == 0:
+                print(f'Episode {episode} ended. Time to process: {elapsed_time}. Reward earned: {episode_r}. Episode loss: {episode_loss}. Avg. Q after episode: {0}. Current eps: {self.net.eps(training_steps)}')
 
             self.curr_state.clear()
             self.next_state.clear()
+        self.clear_memories()
 
 
     def create_tensorboard(self):
@@ -273,9 +305,10 @@ class DQN(BaseMethod):
         qs = np.zeros((self.test_memory.max_size))
         for i in range(0, len(self.test_memory.s), 32):
             end = min(i + 32, self.test_memory.curr)
-            s = self.test_memory.s[i:end]
-            s_net = self.net.to_net(s)
-            qs[i:end] = torch.max(self.net.forward(s_net), axis=1)[0].cpu().data.numpy()
+            states = torch.FloatTensor(self.test_memory.s[i:end])
+            # s_net = self.net.to_net(s)
+            result = self.net.forward(states)
+            qs[i:end] = torch.max(self.net.forward(states), axis=1)[0].cpu().data.numpy()
         qs = np.sum(qs) / self.test_memory.max_size
         return qs
 

@@ -4,7 +4,7 @@ import os
 ROOT_DIR = os.environ['RLROOT']
 
 DEFAULT_PARAMS = {
-    'episodes': 10000,
+    'episodes': 1000000,
     'training_steps': 1000000,
     'batch_size': 32,
     'mem_size': 300000,

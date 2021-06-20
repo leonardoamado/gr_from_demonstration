@@ -7,6 +7,7 @@ import time
 from matplotlib import pyplot as plt
 import ml.metrics as m
 import sys, os
+sys.path.append(os.path.abspath(os.path.join('.')))
 sys.path.append(os.path.abspath(os.path.join('..')))
 
 import numpy as np
@@ -14,7 +15,7 @@ from pddlgym_planners.fd import FD
 
 import pddlgym
 
-env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=False)
+env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=True)
 
 train = True
 policies = []
@@ -37,7 +38,7 @@ for n in range(n_goals):
     env.fix_problem_index(n)
     obs, _ = env.reset()
     if not actions:
-        actions = list(env.action_space.all_ground_literals(obs, valid_only=True))
+        actions = list(env.action_space.all_ground_literals(obs, valid_only=False))
     # policy = TabularQLearner(env, obs, problem=n, action_list=actions)
     policy = current_method(env, obs, problem=n, action_list=actions)
     policies.append(policy)

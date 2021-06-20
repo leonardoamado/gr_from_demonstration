@@ -34,3 +34,10 @@ class InMemoryReplay(Replay):
             return None
         i = np.random.randint(0, min(self.curr, self.max_size), size=(batch_size,))
         return self.s[i], self.a[i], self.s_p[i], self.r[i], self.t[i]
+
+    def clear(self):
+        self.s = None
+        self.s_p = None
+        self.a = None
+        self.r = None
+        self.t = None
