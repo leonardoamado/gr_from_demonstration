@@ -18,26 +18,33 @@ from .memories.inmemory_replay import InMemoryReplay
 from . import common
 
 class MLP(torch.nn.Module):
-    def __init__(self, state_size, num_actions, start_eps=0.9, end_eps=0.1):
+    def __init__(self, state_size, num_actions, start_eps=0.9, end_eps=0.1, dueling=True, dueling_type='mean'):
         super(MLP, self).__init__()
         self.state_size = state_size
+        self.dueling = dueling
         self.device = torch.device(f"cuda" if torch.cuda.is_available()
                                    else "cpu")
         self.fc1 = torch.nn.Linear(state_size, 128)
         self.fc2 = torch.nn.Linear(128, 256)
-        self.fc3 = torch.nn.Linear(256, 128)
-        self.fc4 = torch.nn.Linear(128, num_actions)
+        self.fc3 = torch.nn.Linear(256, 256)
+        if dueling:
+            self.fc_value = torch.nn.Linear(256, 1)
+            self.fc_advantages = torch.nn.Linear(256, num_actions)
+            if dueling_type == 'max':
+                self.dueling_agg = torch.mean
+            elif dueling_type == 'mean':
+                self.dueling_agg = torch.max
+        self.out = torch.nn.Linear(128, num_actions)
         print(self.device)
         print(num_actions, ' THIIIIS IS THE NUMBER OF ACTIONS')
         self.num_actions = num_actions
         self.start_eps = start_eps
         self.end_eps = end_eps
-        self.anneal_until = 200000
+        self.anneal_until = 120000
         self.gamma = 0.99
 
         self.to(self.device)
         self.loss = torch.nn.MSELoss()
-        print(self.fc4)
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
 
     def forward(self, x):
@@ -45,7 +52,14 @@ class MLP(torch.nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        x = self.fc4(x)
+        if self.dueling:
+            adv = F.relu(self.fc_advantages(x))
+            val = F.relu(self.fc_value(x))
+            adv_agg = self.dueling_agg(adv)
+            x = val + adv - adv_agg
+            pass
+        else:
+            x = self.out(x)
         x = torch.squeeze(x)
         return x
 
@@ -117,7 +131,7 @@ class MLP(torch.nn.Module):
 
 class DQN(BaseMethod):
 
-    def __init__(self, env, state, problem=0, params=None, action_list=None):
+    def __init__(self, env, state, problem=0, params=None, action_list=None, check_partial_goals=True):
         # self, params, actions, input_shape=(4, 64, 64)):
         self.params = params if params is not None \
             else common.DEFAULT_PARAMS
@@ -125,13 +139,11 @@ class DQN(BaseMethod):
         self.env.fix_problem_index(problem)
         self.problem = problem
         self.batch_size = self.params['batch_size']
-        self.memory = InMemoryReplay(size=self.params['mem_size'], input_shape=self.params['input_shape'])
-        self.test_memory = InMemoryReplay(size=self.params['dry_size'], input_shape=self.params['input_shape'])
-        self.curr_state = deque(maxlen=self.params['history'])
-        self.next_state = deque(maxlen=self.params['history'])
         self.average_qs = []
         self.max_timesteps = 50
         self.number_of_skips = 5
+        self.check_partial_goals = check_partial_goals
+        self.goal_literals_achieved = set()
 
         self.predicates = env.observation_space.predicates
 
@@ -144,6 +156,10 @@ class DQN(BaseMethod):
 
         self.extract_offsets()
         self.net = MLP(self.state_size, len(action_list))
+        self.memory = InMemoryReplay(size=self.params['mem_size'], input_shape=self.state_size)
+        self.test_memory = InMemoryReplay(size=self.params['dry_size'], input_shape=self.state_size)
+        self.curr_state = deque(maxlen=self.params['history'])
+        self.next_state = deque(maxlen=self.params['history'])
         # self.net = self.net.to(self.net.device)
         # self.train_skip = 8
         # print(f'RND has {self.rnd.count_parameters()} parameters.')
@@ -158,11 +174,24 @@ class DQN(BaseMethod):
         for lit in ground_literals:
             base_offset = self.offsets[lit.predicate.name]
             var_offset = 1
-            for v in lit.variables:
+            vars = lit.variables
+            if len(vars) == 2:
+                idx_first = self.blocks.index(vars[0].name)
+                idx_second = self.blocks.index(vars[1].name)
+                var_offset = len(self.blocks) * idx_first + idx_second
+            else:
+                v = vars[0]
                 if v.var_type == 'block':
-                    var_offset *= self.blocks.index(v.name)
+                    var_offset = self.blocks.index(v.name)
                 else:
                     var_offset = 0
+            # for v in lit.variables:
+            #     if v.var_type == 'block':
+            #         if len(lit.variables) == 2:
+            #             var_offset = 
+            #         # var_offset *= self.blocks.index(v.name)
+            #     else:
+            #         var_offset = 0
             # print('Offsets:',base_offset, var_offset, base_offset + var_offset)
             state[base_offset + var_offset] = 1.
         return torch.FloatTensor(state)
@@ -208,6 +237,7 @@ class DQN(BaseMethod):
         print(f'Training model {type(self.net).__name__}. Parameters: {self.net.parameter_count():,d}.')
         # self.dry_run(self.params['dry_size'])
         writer = self.create_tensorboard()
+        max_reward = float("-inf")
         # s, _, _, _, _ = self.test_memory.get_batch(10)
         # s = torch.from_numpy(s).to(self.net.device)
         # writer.add_graph(self.net, input_to_model=s, verbose=True)
@@ -223,7 +253,7 @@ class DQN(BaseMethod):
 
 
                 state = self.build_state(obs)
-
+                # self.curr_state.
                 _a = self.net.next_action(state, training_steps)
                 if _a >= 80:
                     print('adding this fucking thing', _a)
@@ -240,11 +270,13 @@ class DQN(BaseMethod):
                     obs, r, done, _ = self.env.step(action)
                     if done:
                         print('GOAL REACHED POGGERS')
-                        r = 100.
+                        r = common.GOAL_REWARD
                     else:
-                        r = -1.
+                        r = common.TIMESTEP_REWARD
+                        if self.check_partial_goals:
+                            r += self.check_for_partial_goals(obs)
                 except InvalidAction:
-                    r = -10.
+                    r = common.INVALID_ACTION_REWARD
                 next_state = self.build_state(obs)
                 # if done:
                 #     next_state = state
@@ -279,16 +311,30 @@ class DQN(BaseMethod):
                 episode_r += r
 
             elapsed_time = time.time() - start_time
+            if episode_r > max_reward:
+                max_reward = episode_r
+                print("new max reward reached:", max_reward)
             # avg_q = self.average_q_test()
             # self.write_tensorboard(writer, episode_loss, episode_r, avg_q)
             # self.average_qs.append(avg_q)
             if (episode + 1) % 1000 == 0:
                 print(f'Episode {episode} ended. Time to process: {elapsed_time}. Reward earned: {episode_r}. Episode loss: {episode_loss}. Avg. Q after episode: {0}. Current eps: {self.net.eps(training_steps)}')
-
+            
             self.curr_state.clear()
             self.next_state.clear()
+            self.goal_literals_achieved.clear()
         self.clear_memories()
 
+    
+    def check_for_partial_goals(self, obs):
+        literals = obs[0]
+        goals = obs[2].literals
+        r = 0.
+        for lit in literals:
+            if lit not in self.goal_literals_achieved and lit in goals:
+                r += common.PARTIAL_GOAL_REWARD
+                self.goal_literals_achieved.add(lit)
+        return r
 
     def create_tensorboard(self):
         src_dir = os.environ['RLROOT']

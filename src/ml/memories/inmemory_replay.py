@@ -5,7 +5,7 @@ from .replay import Replay
 
 class InMemoryReplay(Replay):
     def __init__(self, size, input_shape):
-        shape = (size,) + input_shape
+        shape = (size, input_shape)
         # data structure: State x Action x Next State x Reward x Terminal
         self.s = np.zeros(shape, dtype='float32')
         self.s_p = np.zeros(shape, dtype='float32')
