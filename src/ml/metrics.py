@@ -2,7 +2,7 @@ import collections
 from typing import Collection
 from matplotlib import pyplot as plt
 import numpy as np
-from math import log2
+from math import log2, exp
 import random
 import os
 
@@ -10,6 +10,9 @@ from numpy.core.fromnumeric import mean
 
 def kl_divergence(p1, p2):
     return sum(p1[i] * log2(p1[i]/p2[i]) for i in range(len(p1)))
+
+def softmax(values):
+    return [(exp(q))/sum([exp(_q) for _q in values]) for q in values]
 
 # def generic_kl_divergence_per_plan_state(trajectory, policy, epsilon=0., actions=24):
     
@@ -42,6 +45,35 @@ def kl_divergence_norm_generic(traj, policy, actions, epsilon=0.):
     return distances
 
 
+def values_to_distribution(values):
+    policy = {}
+    for state in values:
+        policy[state] = softmax(values[state])
+    return policy
+
+
+def kl_divergence_norm_softmax(traj, p, actions, epsilon=0.):
+    p_traj = traj_to_policy(traj, actions)
+    # p1 = values_to_policy(p1, epsilon)
+    policy = values_to_distribution(p)
+
+    distances = []
+    for i, state in enumerate(p_traj):
+        if state not in policy:
+            add_dummy_dist(policy, state, actions, epsilon)
+        qp1 = p_traj[state]
+        qp2 = policy[state]
+        # print(f'Best action for traj and policy, state {i}: {np.argmax(qp1)} - {np.argmax(qp2)}')
+        distances.append(kl_divergence(qp1, qp2))
+    return mean(distances)
+
+def add_dummy_dist(policy, state, actions):
+    n_actions = len(actions)
+    policy[state] = [1./n_actions for _ in range(n_actions)]
+    # best_random_action = random.choice(range(n_actions))
+    # policy[state][best_random_action] = 1. - epsilon - 1e-6*(n_actions-1)
+
+
 def kl_divergence_norm(traj, p, actions, epsilon=0.):
     p_traj = traj_to_policy(traj, actions)
     # p1 = values_to_policy(p1, epsilon)
@@ -63,19 +95,16 @@ def add_dummy_q(policy, state, actions, epsilon=0.):
     best_random_action = random.choice(range(n_actions))
     policy[state][best_random_action] = 1. - epsilon - 1e-6*(n_actions-1)
 
-def kl_divergence_mean(p1, p2):
-
-    pass
 
 def traj_to_policy(traj, actions, epsilon=0.):
-    trajectory_as_police = {}
+    trajectory_as_policy = {}
     for state, action in traj:
         action_index = actions.index(action)
         actions_len = len(actions)
         qs = [1e-6 + epsilon/actions_len for _ in range(actions_len)]
         qs[action_index] = 1. - 1e-6 * (actions_len-1) - epsilon
-        trajectory_as_police[state] = qs
-    return trajectory_as_police
+        trajectory_as_policy[state] = qs
+    return trajectory_as_policy
 
 def values_to_policy(policy, epsilon=0.):
     policy_table = {}
@@ -104,9 +133,9 @@ def plot_mean_divergence(goal, eps, *divs):
     save_path = os.path.abspath('../imgs')
     for i, d in enumerate(divs):
         ax.text(i, d + 1.5, f'{d:.2f}')
-    ax.set_ylim([0., 25.])
+    ax.set_ylim([0., 100.])
     plt.savefig(f'{save_path}/goal_{goal}_eps_{eps}.jpg')
-    plt.show()
+    # plt.show()
 
 
 def divergence_table(ds, goals):

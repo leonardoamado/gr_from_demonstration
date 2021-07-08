@@ -60,4 +60,14 @@ Will develop some improved DQN architectures (dueling, double)
 
 After adding dueling DQN:
 
-loss is still completely fucked
+
+------------------------
+
+blocks order: ['c', 'a', 'b', 'd']
+predicate order:
+         clear
+         handempty
+         handfull
+         holding
+         on
+         ontable

@@ -5,6 +5,9 @@ import datetime
 
 from pddlgym.core import InvalidAction
 
+from ml.common import GOAL_REWARD
+from ml.common_functions import check_for_partial_goals
+
 # This will be an implementation of Q-Learning with Gym
 
 # use epsilon-greedy policies instead of 1 for maximum, 0 otherwise
@@ -71,14 +74,17 @@ class TabularQLearner(RLAgent):
                  env,
                  init_obs,
                  problem=None,
-                 episodes=60000,
+                 episodes=100000,
                  decaying_eps=True,
                  eps=0.9,
-                 alpha=0.01,
-                 decay=0.0000003,
-                 gamma=0.85,
+                 alpha=0.001,
+                 decay=0.0000002,
+                 gamma=0.99,
                  action_list=None,
+                 check_partial_goals=True,
+                 valid_only=False,
                  **kwargs):
+        self.valid_only = valid_only
         self.env = env
         if not action_list:
             self.action_list = list(env.action_space.all_ground_literals(init_obs, valid_only=False))
@@ -86,6 +92,8 @@ class TabularQLearner(RLAgent):
             self.action_list = action_list
             print(action_list)
         self.actions = len(self.action_list)
+        self.check_partial_goals = check_partial_goals
+        self.goal_literals_achieved = set()
 
         self.q_table = {}
 
@@ -95,11 +103,11 @@ class TabularQLearner(RLAgent):
         self.decay = decay
         self.c_eps = eps
         self.base_eps = eps
-        self.patience = 40000
+        self.patience = 400000
         if decaying_eps:
 
             def epsilon():
-                self.c_eps = max(self.c_eps - self.decay, 0.01)
+                self.c_eps = max(self.c_eps - self.decay, 0.1)
 
                 return self.c_eps
 
@@ -108,7 +116,7 @@ class TabularQLearner(RLAgent):
             self.eps = lambda: eps
         self.decaying_eps = decaying_eps
         self.alpha = alpha
-
+        self.problem = problem
         if problem:
             self.env.fix_problem_index(problem)
 
@@ -123,11 +131,12 @@ class TabularQLearner(RLAgent):
            self.q_table = table
 
     def add_new_state(self, state):
-        self.q_table[state] = [0 for _ in range(self.actions)]
+        self.q_table[state] = [1. for _ in range(self.actions)]
 
     def best_action(self, state):
         if state not in self.q_table:
-            self.q_table[state] = [0 for _ in range(self.actions)]
+            self.add_new_state(state)
+            # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
 
 
@@ -151,7 +160,9 @@ class TabularQLearner(RLAgent):
         tsteps = 50
         done_times = 0
         patience = 0
+        max_r = float("-inf")
         for n in range(self.episodes):
+            episode_r = 0
             state, info = self.env.reset()
             state = state.literals
             done = False
@@ -164,13 +175,16 @@ class TabularQLearner(RLAgent):
                 else:
                     a = self.best_action(state)
                 try:
-                    next_state, r, done, _ = self.env.step(self.action_list[a])
-                    next_state = next_state.literals
-                    if r != 1:
-                        r = -1.
+                    obs, r, done, _ = self.env.step(self.action_list[a])
+                    next_state = obs.literals
+                    if done:
+                        r = 100.
+                    # else:
+                    #     if self.check_partial_goals:
+                    #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
                 except InvalidAction:
                     next_state = state
-                    r = -10.
+                    r = -1.
                     done = False
 
                 if done:
@@ -185,6 +199,10 @@ class TabularQLearner(RLAgent):
                 self.set_q_value(state, a, new_q)
                 state = next_state
                 tstep += 1
+                episode_r += r
+            if episode_r > max_r:
+                max_r = episode_r
+                print("New all time high reward:", episode_r)
             if (n + 1) % 1000 == 0:
                 print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {eps}')
                 if done_times <= 10:
@@ -195,4 +213,5 @@ class TabularQLearner(RLAgent):
                 else:
                     patience = 0
                 done_times = 0
+            self.goal_literals_achieved.clear()
         print(len(self.q_table.keys()))

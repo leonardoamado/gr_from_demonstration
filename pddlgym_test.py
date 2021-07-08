@@ -2,7 +2,7 @@ import pddlgym
 from pddlgym_planners.fd import FD
 
 # See `pddl/sokoban.pddl` and `pddl/sokoban/problem3.pddl`.
-env = pddlgym.make("PDDLEnvBlocks-v0")
+env = pddlgym.make("PDDLEnvBlocks-v0", dynamic_action_space=True)
 env.fix_problem_index(0)
 obs, debug_info = env.reset()
 print(debug_info)

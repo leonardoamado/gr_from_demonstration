@@ -1,4 +1,5 @@
 from numpy import deg2rad
+from ml.linear import LinearQLearning
 from ml.rl import TabularQLearner
 from ml.dqn import DQN
 import json
@@ -15,11 +16,22 @@ from pddlgym_planners.fd import FD
 
 import pddlgym
 
-env = pddlgym.make("PDDLEnvBlocks-v0", raise_error_on_invalid_action=True)
+# configs for environment
+
+RAISE_ERROR_ON_VALID = False
+DYNAMIC_ACTION_SPACE = True
+
+
+env = pddlgym.make("PDDLEnvBlocks-v0",
+                    raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                    dynamic_action_space=DYNAMIC_ACTION_SPACE)
+
+
+#############################
 
 train = True
 policies = []
-n_goals = 21
+n_goals = 4
 blocks = ['d', 'r', 'a', 'w', 'o', 'e', 'p', 'c']
 robots = 1
 
@@ -31,30 +43,33 @@ state_representation = []
 
 actions = None
 
-current_method = DQN
+# current_method = DQN
+current_method = TabularQLearner
+
+starting_problem_index = 4
 
 for n in range(n_goals):
     time.sleep(3)
-    env.fix_problem_index(n)
+    env.fix_problem_index(starting_problem_index + n)
     obs, _ = env.reset()
     if not actions:
         actions = list(env.action_space.all_ground_literals(obs, valid_only=False))
     # policy = TabularQLearner(env, obs, problem=n, action_list=actions)
-    policy = current_method(env, obs, problem=n, action_list=actions)
+    policy = current_method(env, obs, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
     policies.append(policy)
     if train:
         done = False
         print(f"Training policy for goal {n}")
         while not done:
-            # try:
-            policy.learn()
-            done = True
-            # except ValueError as e:
-            #     print(e)
-            #     obs, _ = env.reset()
-            #     policies[-1] = current_method(env, obs, problem=n, action_list=actions)
-            #     # policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
-            #     policy = policies[-1]
+            try:
+                policy.learn()
+                done = True
+            except ValueError as e:
+                print(e)
+                obs, _ = env.reset()
+                policies[-1] = current_method(env, obs, problem=n, action_list=actions)
+                # policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
+                policy = policies[-1]
         # policy.save_q_table(f"policies/p{n}.pickle")
     # else:
     #     policy.load_q_table(f"policies/p{n}.pickle")
@@ -77,10 +92,14 @@ for n in range(n_goals):
         obs, _, _, _ = env.step(a)
     ds = {}
     for eps in epsilons:
-        d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
-        d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
-        d3 = m.kl_divergence_norm(traj, policies[2].q_table, actions, epsilon=eps)
-        d4 = m.kl_divergence_norm(traj, policies[3].q_table, actions, epsilon=eps)
+        # d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
+        # d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
+        # d3 = m.kl_divergence_norm(traj, policies[2].q_table, actions, epsilon=eps)
+        # d4 = m.kl_divergence_norm(traj, policies[3].q_table, actions, epsilon=eps)
+        d1 = m.kl_divergence_norm_softmax(traj, policies[0].q_table, actions, epsilon=eps)
+        d2 = m.kl_divergence_norm_softmax(traj, policies[1].q_table, actions, epsilon=eps)
+        d3 = m.kl_divergence_norm_softmax(traj, policies[2].q_table, actions, epsilon=eps)
+        d4 = m.kl_divergence_norm_softmax(traj, policies[3].q_table, actions, epsilon=eps)
         if f'p{n}' not in ds:
             ds[f'p{n}'] = []
         ds[f'p{n}'].append([d1, d2, d3, d4])
