@@ -24,7 +24,6 @@ class InMemoryReplay(Replay):
         self.s_p[i] = s_p
         self.r[i] = r
         self.t[i] = t
-        # self.curr = min(self.curr + 1, self.max_size)
         self.curr += 1
         if self.curr % 10000 == 0:
             print(f'Current memory size: {self.curr}')

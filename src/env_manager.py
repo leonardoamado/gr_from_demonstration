@@ -5,6 +5,12 @@ import pddlgym
 from pddlgym_planners.fd import FD
 
 class EnvManager:
+    """
+    Class used to manage PDDLGym environments.
+    Not really used throughout the code,
+    since it is easier to just interact directly
+    with the environment object.
+    """
     def __init__(self, envname):
         self.env = pddlgym.make(f'PDDLEnv{envname}-v0')
         self.initial_obs = None

@@ -49,8 +49,12 @@ from ml.common_functions import check_for_partial_goals
 #   patience: inf
 #   1, -1, -10
 
-
 class RLAgent:
+    """
+    This is a base class used as parent class for any
+    RL agent. This is currently not much in use, but is
+    recommended as development goes on.
+    """
     def __init__(self,
                  problem=0,
                  episodes=100,
@@ -70,6 +74,9 @@ class RLAgent:
         self.action_list = action_list
 
 class TabularQLearner(RLAgent):
+    """
+    A simple Tabular Q-Learning agent.
+    """
     def __init__(self,
                  env,
                  init_obs,
@@ -122,6 +129,11 @@ class TabularQLearner(RLAgent):
 
 
     def save_q_table(self, path):
+        # sadly, this does not work, because the state we are using
+        # is a frozenset of literals, which are not serializable.
+        # a way to fix this is to use array states built using
+        # common_functions.build_state
+
         with open(path, 'w') as f:
             pickle.dump(self.q_table, f)
 
@@ -179,6 +191,10 @@ class TabularQLearner(RLAgent):
                     next_state = obs.literals
                     if done:
                         r = 100.
+                    # this piece of code was a test that failed miserably.
+                    # whenever the agent reaches a state that contains a fact
+                    # of the goal, give a positive reward.
+                    #
                     # else:
                     #     if self.check_partial_goals:
                     #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
@@ -190,6 +206,9 @@ class TabularQLearner(RLAgent):
                 if done:
                     done_times += 1
 
+
+                # standard q-learning algorithm
+                
                 next_max_q = self.get_max_q(next_state)
                 old_q = self.get_q_value(state, a)
 
@@ -209,7 +228,7 @@ class TabularQLearner(RLAgent):
                     patience += 1
                     if patience >= self.patience:
                         print(f"Did not find goal after {n} episodes. Retrying.")
-                        raise ValueError("Did not learn")
+                        raise InvalidAction("Did not learn")
                 else:
                     patience = 0
                 done_times = 0

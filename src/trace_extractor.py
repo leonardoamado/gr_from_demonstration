@@ -8,6 +8,9 @@ import os
 OUT_IMG_FORMAT = 'jpg'
 
 class TraceExtractor:
+    """
+    Base class used to extract traces from PDDLGym environments.
+    """
     def __init__(self, env, *args, **kwargs):
         pass
 
@@ -16,17 +19,27 @@ class TraceExtractor:
 
 
 class VisualTraceExtractor(TraceExtractor):
+    """
+    Trace extraction class that extracts visual traces
+    from environments containing a renderer function.
+    To see environments that have a renderer function,
+    go to pddlgym/__init__.py
+    """
     def __init__(self, env: EnvManager, *args, **kwargs):
         self.env = env
         _, info = self.env.reset()
+        # domain_file contains the complete path to the domain
         self.domain_name = info['domain_file'].split('/')[-1].split('.')[0]
         pass
 
     def extract(self):
-        # self.env.
+        """
+        Go through all problems of a domain,
+        plan the optimal path using a planner,
+        and save the visual trace.
+        """
         for problem_idx in range(len(self.env.problems())):
             _, info = self.env.reset(problem_idx)
-            # domain = info['domain_file']
             print('Problem file: ', info['problem_file'])
             problem_name = info['problem_file'].split('/')[-1].split('.')[0]
             trace = self.env.render()

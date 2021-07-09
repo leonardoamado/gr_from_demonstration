@@ -4,6 +4,9 @@ import torch
 from torch.autograd import Variable
 from utils import *
 
+# code taken from some random repository
+# implements a generic TRPO algorithm
+
 
 def conjugate_gradients(Avp, b, nsteps, residual_tol=1e-10):
     x = torch.zeros(b.size())

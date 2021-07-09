@@ -14,6 +14,8 @@ sys.path.append(os.path.abspath(os.path.join('..')))
 import numpy as np
 from pddlgym_planners.fd import FD
 
+from pddlgym.core import InvalidAction
+
 import pddlgym
 
 # configs for environment
@@ -21,6 +23,10 @@ import pddlgym
 RAISE_ERROR_ON_VALID = False
 DYNAMIC_ACTION_SPACE = True
 
+# when creating an env, if raise_error_on_invalid_action is true,
+# whenever an invalid action is performed, an InvalidAction error is raised.
+# dynamic_action_space makes the env return only the valid actions of a state
+# when listing possible actions.
 
 env = pddlgym.make("PDDLEnvBlocks-v0",
                     raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
@@ -32,7 +38,6 @@ env = pddlgym.make("PDDLEnvBlocks-v0",
 train = True
 policies = []
 n_goals = 4
-blocks = ['d', 'r', 'a', 'w', 'o', 'e', 'p', 'c']
 robots = 1
 
 offsets = {}
@@ -53,8 +58,10 @@ for n in range(n_goals):
     env.fix_problem_index(starting_problem_index + n)
     obs, _ = env.reset()
     if not actions:
+        # get all literals in its grounded version
         actions = list(env.action_space.all_ground_literals(obs, valid_only=False))
     # policy = TabularQLearner(env, obs, problem=n, action_list=actions)
+    # build method to learn policy
     policy = current_method(env, obs, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
     policies.append(policy)
     if train:
@@ -65,20 +72,24 @@ for n in range(n_goals):
                 policy.learn()
                 done = True
             except ValueError as e:
+                # if this error happened, it means that the policy did not learn
+                # how to reach the goal after a large number of training steps.
+                # In this case, reset the learning and try again.
+                # (this was just a dumb fix to when the agent randomly didn't reach the goal
+                # before epsilon getting too low)
                 print(e)
                 obs, _ = env.reset()
                 policies[-1] = current_method(env, obs, problem=n, action_list=actions)
-                # policies[-1] = TabularQLearner(env, obs, problem=n, action_list=actions)
                 policy = policies[-1]
-        # policy.save_q_table(f"policies/p{n}.pickle")
-    # else:
-    #     policy.load_q_table(f"policies/p{n}.pickle")
 
 planner = FD()
 
 epsilons = [0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
 
 for n in range(n_goals):
+    # for each goal, get an optimal plan and compute the
+    # divergence of each policy to this trajectory.
+
     env.fix_problem_index(n)
     obs, _ = env.reset()
     print(f"PLANNING FOR GOAL {obs.goal}")
@@ -91,37 +102,27 @@ for n in range(n_goals):
         traj.append(state_action_pair)
         obs, _, _, _ = env.step(a)
     ds = {}
+    
+    # compute policy with multiple epsilon values (only relevant when not doing softmax)
     for eps in epsilons:
+        
+        # pretty bad implementation of a plot, but w.e.
+        divergences = []
+        for i in range(n_goals):
+            divergence = m.kl_divergence_norm_softmax(traj, policies[i].q_table, actions, epsilon=eps)
+            divergences.append(divergence)
         # d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
         # d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
         # d3 = m.kl_divergence_norm(traj, policies[2].q_table, actions, epsilon=eps)
         # d4 = m.kl_divergence_norm(traj, policies[3].q_table, actions, epsilon=eps)
-        d1 = m.kl_divergence_norm_softmax(traj, policies[0].q_table, actions, epsilon=eps)
-        d2 = m.kl_divergence_norm_softmax(traj, policies[1].q_table, actions, epsilon=eps)
-        d3 = m.kl_divergence_norm_softmax(traj, policies[2].q_table, actions, epsilon=eps)
-        d4 = m.kl_divergence_norm_softmax(traj, policies[3].q_table, actions, epsilon=eps)
-        if f'p{n}' not in ds:
-            ds[f'p{n}'] = []
-        ds[f'p{n}'].append([d1, d2, d3, d4])
-        # m.plot_traj_policy_divergence(n, eps, d1)
-        m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
-
-    # m.plot(n, d1, d2, d3)
+        # d1 = m.kl_divergence_norm_softmax(traj, policies[0].q_table, actions, epsilon=eps)
+        # d2 = m.kl_divergence_norm_softmax(traj, policies[1].q_table, actions, epsilon=eps)
+        # d3 = m.kl_divergence_norm_softmax(traj, policies[2].q_table, actions, epsilon=eps)
+        # d4 = m.kl_divergence_norm_softmax(traj, policies[3].q_table, actions, epsilon=eps)
+        # if f'p{n}' not in ds:
+        #     ds[f'p{n}'] = []
+        # ds[f'p{n}'].append([d1, d2, d3, d4])
+        # m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
+        m.plot_mean_divergence(n, eps, divergences)
 
 
-# print(obs)1
-# for key in learner.q_table.keys():
-#     print(learner.q_table[key])
-# while not done:
-#     a = learner.best_action(obs)
-#     a = learner.action_list[a]
-#     print(a)
-#     obs, _, done, _ = env.step(a)
-
-
-#     pickup(b:block)
-    # stack(b:block,a:block)
-    # pickup(c:block)
-    # stack(c:block,b:block)
-    # pickup(d:block)
-    # stack(d:block,c:block)
