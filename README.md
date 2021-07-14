@@ -6,6 +6,15 @@ This project has the main objective of applying (Inverse) Reinforcement Learning
 
 Install the requirements located at `requirements.txt`, source `setup.sh`, and then you can run either a training or a trace extraction. To train an agent, run `src/train.py`, selecting the type of agent you want to train. To extract traces for debugging and later on running training for imitation learning algorithms, run `src/dataset/extract_dataset.py`. For now, only **blocksworld** environment works, as PDDLGym has a renderer function implemented for it, and is one of the easiest to integrate with the Goal Recognition dataset.
 
+In conda, need to run
+```zsh
+conda install pytorch torchvision -c pytorch
+```
+
+Initialize submodules:
+```zsh
+git submodule update --remote --recursive
+```
 
 ## Methods
 
