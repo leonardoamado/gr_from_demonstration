@@ -2,6 +2,18 @@
 
 This project has the main objective of applying (Inverse) Reinforcement Learning to the problem of Goal Recognition. Instead of computing goals the way standard algorithms do, we try to learn multiple policies via Reinforcement Learning to learn how to reach each of the possible goals on the environment, and then compute the error of a trajectory and the policies. The solution to the problem is the goal of the policy that presents the least error between all of them.
 
+## Cloning the repo
+
+In order to initialize the submodules upon cloning you need to run:
+```zsh
+git clone --recurse-submodules https://github.com/gabwaen/rl_goal_recognition.git
+```
+
+Alternatively, you need to run the following after cloning to initialize submodules:
+```zsh
+git submodule update --remote --recursive
+```
+
 ## Running the code
 
 Install the requirements located at `requirements.txt`, source `setup.sh`, and then you can run either a training or a trace extraction. To train an agent, run `src/train.py`, selecting the type of agent you want to train. To extract traces for debugging and later on running training for imitation learning algorithms, run `src/dataset/extract_dataset.py`. For now, only **blocksworld** environment works, as PDDLGym has a renderer function implemented for it, and is one of the easiest to integrate with the Goal Recognition dataset.
@@ -9,11 +21,6 @@ Install the requirements located at `requirements.txt`, source `setup.sh`, and t
 In conda, need to run
 ```zsh
 conda install pytorch torchvision -c pytorch
-```
-
-Initialize submodules:
-```zsh
-git submodule update --remote --recursive
 ```
 
 ## Methods
