@@ -127,7 +127,6 @@ class TabularQLearner(RLAgent):
         if problem:
             self.env.fix_problem_index(problem)
 
-
     def save_q_table(self, path):
         # sadly, this does not work, because the state we are using
         # is a frozenset of literals, which are not serializable.
@@ -139,8 +138,8 @@ class TabularQLearner(RLAgent):
 
     def load_q_table(self, path):
         with open(path, 'r') as f:
-           table = pickle.load(path)
-           self.q_table = table
+            table = pickle.load(path)
+            self.q_table = table
 
     def add_new_state(self, state):
         self.q_table[state] = [1. for _ in range(self.actions)]
@@ -150,7 +149,6 @@ class TabularQLearner(RLAgent):
             self.add_new_state(state)
             # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
-
 
     def get_max_q(self, state):
         if state not in self.q_table:

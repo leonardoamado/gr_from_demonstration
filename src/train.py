@@ -51,7 +51,7 @@ actions = None
 # current_method = DQN
 current_method = TabularQLearner
 
-starting_problem_index = 4
+starting_problem_index = 1
 
 for n in range(n_goals):
     time.sleep(3)
