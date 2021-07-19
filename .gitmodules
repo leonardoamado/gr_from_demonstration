@@ -4,3 +4,6 @@
 [submodule "goal-plan-recognition-dataset"]
 	path = goal-plan-recognition-dataset
 	url = https://github.com/pucrs-automated-planning/goal-plan-recognition-dataset
+[submodule "pddl_parser"]
+	path = pddl_parser
+	url = https://github.com/pucrs-automated-planning/pddl-parser
