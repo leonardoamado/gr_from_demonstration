@@ -10,24 +10,6 @@ ACTIONS_MAPPING = {
 ACTIONS = ["pickup", "putdown", "unstack", "stack"]
 OBJECTS = []
 
-
-def replace_words(file):
-    with open(file, 'w+') as f:
-        new_lines = []
-        for line in f.readlines():
-            if " - block" in line:
-                objects = line.split(' - block')[0].split(' ')
-
-            lowercase_line = line.lower()
-            for key, val in BLOCKSWORLD_MAPPING.items():
-                lowercase_line = lowercase_line.replace(key, val)
-            new_lines.append(lowercase_line)
-
-
-
-# def add_actions_to_problem(file):
-#     for
-
 def gen_actions(blocks):
     putdown = []
     unstack = []
@@ -43,10 +25,6 @@ def gen_actions(blocks):
             stack.append(f'(stack {blocks[i]} {blocks[j]})')
     return '\n'.join(putdown), '\n'.join(unstack), '\n'.join(pickup), '\n'.join(stack)
 
-def add_goal(goals, f):
-    for goal in goals.readlines():
-        pass
-
 def create_problem_files(template, goals, path):
     domain_name = path.split('/')[-1]
     files = []
@@ -57,11 +35,13 @@ def create_problem_files(template, goals, path):
             files.append(write_problem_file(goal, i, domain_name, template_text, path))
     return files
 
+def extract_objects(objects):
+    return objects.split(' - block')[0].split(' ')
+
 def write_problem_file(goal, i, domain, template, path):
     objects = []
     file_path = f'{path}/{domain}_problem_{i:02d}.pddl'
     with open(file_path, 'w') as f:
-        # template = f.readlines()
         for line in template:
 
             if ' - block' in line:
@@ -86,11 +66,8 @@ def adapt_obs(obs_path):
     with open(obs_path, 'w') as f:
         for action in actions:
             action_split = action.rstrip(')\n').split(' ')
-            # print(action_split)
             a = action_split[0].lower().lstrip('(')
             objs = action_split[1:]
-            # objs = action_split[1].rstrip(')').split(' ')
-            # print(a, '----',objs)
             if a == 'pick-up':
                 print(a, objs)
                 a = 'pickup'
@@ -103,8 +80,3 @@ def adapt_obs(obs_path):
             elif a == 'stack':
                 objs = ' '.join(objs)
             f.write(f'({a} {objs})\n')
-
-
-def extract_objects(objects):
-    return objects.split(' - block')[0].split(' ')
-
