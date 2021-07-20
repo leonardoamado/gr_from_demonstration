@@ -35,8 +35,6 @@ class MLP(torch.nn.Module):
             elif dueling_type == 'mean':
                 self.dueling_agg = torch.max
         self.out = torch.nn.Linear(128, num_actions)
-        print(self.device)
-        print(num_actions, ' THIIIIS IS THE NUMBER OF ACTIONS')
         self.num_actions = num_actions
         self.start_eps = start_eps
         self.end_eps = end_eps
@@ -84,12 +82,9 @@ class MLP(torch.nn.Module):
     def train(self, batch, target=None):
         # memory is built as State x Action x Next State x Reward x Is Terminal
         s, a, s_p, r, t = batch[0], batch[1], batch[2], batch[3], batch[4]
-        # s = torch.from_numpy(s)
-        # s_p = torch.from_numpy(s_p)
         with torch.no_grad():
             next_state_torch = torch.from_numpy(s_p).type(torch.FloatTensor).to(self.device)
             qs_future = self.forward(next_state_torch)
-            # qs_future_target = target.forward(next_state_torch).cpu().data.numpy()
             qs_future_numpy = qs_future.cpu().data.numpy()
         self.optimizer.zero_grad()
         state_torch = torch.from_numpy(s).type(torch.FloatTensor).to(self.device)
