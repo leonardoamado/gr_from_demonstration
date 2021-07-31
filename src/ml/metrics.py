@@ -78,7 +78,7 @@ def kl_divergence_norm_softmax(traj, p, actions, epsilon=0.):
     distances = []
     for i, state in enumerate(p_traj):
         if state not in policy:
-            add_dummy_policy(policy, state, actions, epsilon)
+            add_dummy_policy(policy, state, actions)
         qp1 = p_traj[state]
         qp2 = policy[state]
         # print(f'Best action for traj and policy, state {i}: {np.argmax(qp1)} - {np.argmax(qp2)}')
