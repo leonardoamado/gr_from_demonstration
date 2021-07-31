@@ -1,15 +1,21 @@
 .vscode/
+*.pkl
 
 *.pyc
 __pycache__/
+.ipynb_checkpoints/
+src/output/*
 
 # planners downloaded from pddlgym_planners
 FF-v2.3/
 FD/
-
+src/pddlgym_planners
+src/pddl_parser
+pddl/
 
 gr_datasets/
 imgs/
 logs/
+exp_setups
 
 .DS_Store
