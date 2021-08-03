@@ -89,7 +89,12 @@ def complete_problem(problem_file, problem, task, goal, number, path):
                 new_problem.write('\n\t')
     new_problem.close()
 
-
+def complete_obs(observations, path, name):
+    new_obs = open(path + name, "w")
+    for line in observations:
+        new_obs.write(line)
+    new_obs.close()
+        
 
 """
 This is the main method that converts a GR problem directory to a PDDLGym 
@@ -124,8 +129,10 @@ def gr_to_gym(d, output='output', obs_per=100):
     complete_domain(domain, output +'/' + d, None)
     for count, goal in enumerate(goals):
         complete_problem(template, problem, task, goal, count, output +'/' + d)
-    #TODO copy the observations to the desired location
-
+    
+    #Copy the observations and the correct goal to the desired location
+    complete_obs(observations, output +'/' + d + '/', 'obs.dat')
+    complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')    
         
 
 
