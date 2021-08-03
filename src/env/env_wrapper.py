@@ -1,6 +1,9 @@
-from typing import Any, Dict, List, Sequence, Collection, Tuple
+from typing import Any, Dict, List, Sequence, Collection, Set, Tuple
+from gym.spaces.space import Space
+from gym.spaces.discrete import Discrete
 from pddlgym.core import PDDLEnv
-from pddlgym.structs import Predicate, Literal
+from pddlgym.spaces import LiteralActionSpace, LiteralSetSpace, LiteralSpace
+from pddlgym.structs import Predicate, Literal, State
 from pddlgym.parser import PDDLProblemParser
 from gym import Env
 from env.indexing import compute_indices
@@ -13,16 +16,16 @@ from collections import defaultdict
 
 class PDDLProblem():
 
-    def __init__(self, wrapped: PDDLProblemParser) -> None:
-        self.wrapped = wrapped
+    def __init__(self, problem: PDDLProblemParser) -> None:
+        self._problem = problem
         self._all_ground_literals = set()
         # Initialize all ground literals
         self._type_to_objs = defaultdict(list)
 
-        for obj in sorted(self.wrapped.objects):
+        for obj in sorted(self._problem.objects):
             self._type_to_objs[obj.var_type].append(obj)
 
-        for predicate in self.wrapped.predicates.values():
+        for predicate in self._problem.predicates.values():
             choices = [self._type_to_objs[vt] for vt in predicate.var_types]
             for choice in itertools.product(*choices):
                 if len(set(choice)) != len(choice):
@@ -32,19 +35,39 @@ class PDDLProblem():
 
     @property
     def objects(self):
-        return self.wrapped.objects
+        return self._problem.objects
 
     @property
     def objectmap(self):
-        return self.wrapped
+        return self._problem
 
     @property
     def predicates(self) -> Predicate:
-        return self.wrapped.predicates
+        return self._problem.predicates
 
     @property
     def all_ground_literals(self) -> Collection[Literal]:
         return self._all_ground_literals
+
+    @property
+    def initial_state(self) -> Set:
+        return self._problem.initial_state
+    
+    @property
+    def goal(self) -> Set:
+        return self._problem.goal
+
+
+class LiteralSpaceWrapper(Discrete):
+    r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
+    def __init__(self, wrapped_space: LiteralSpace, env: Env) -> None:
+        # assert isinstance(wrapped_env, LiteralActionSpace)
+        self._space = wrapped_space
+        self_env = env
+        super().__init__(len(self._space.all_ground_literals(State(env.get_problem().initial_state, env.get_problem().objects, env.get_problem().goal))))  # TODO Don't do this only with the initial state
+
+    def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
+        return self._space.sample()
 
 # What follows was adapted from pddl_env
 
@@ -82,27 +105,45 @@ class PDDLGymVecWrapper(Env):
 
     def __init__(self, wrapped_env: PDDLEnv) -> None:
         super().__init__()
-        self.env = wrapped_env
-        self.problems = [PDDLProblem(problem) for problem in wrapped_env.problems]
+        self._env = wrapped_env
+        self._problems = [PDDLProblem(problem) for problem in wrapped_env.problems]
+        self._all_ground_literals = self._problems[self._env._problem_idx].all_ground_literals
+        # self._all_ground_action_literals = self._problems  # TODO Check that I instantiate all possible actions at this point
+        # self._observation_space = to_flat_dense_binary(self._all_ground_literals, self._env.problems[self._env._problem_idx])
+        self._observation_space = LiteralSpaceWrapper(wrapped_env.observation_space, self)
+        self._action_space = LiteralSpaceWrapper(wrapped_env.action_space, self)
 
     def seed(self, seed: int) -> List[int]:
-        return self.env.seed(seed=seed)
+        return self._env.seed(seed=seed)
 
-    def reset(self) -> Any:
-        return self.env.reset()
+    def reset(self) -> np.ndarray:
+        state, _debug = self._env.reset()
+        vec_state = to_flat_dense_binary(state.literals, self.get_problem())
+        return vec_state
+
+    def get_state(self) -> State:
+        return self._env.get_state()
+
+    def get_problem(self) -> PDDLProblem:
+        return self._problems[self._env._problem_idx]
 
     @property
     def observation_space(self) -> np.ndarray:
-        return to_flat_dense_binary(self.problems[self.env._problem_idx].all_ground_literals, self.env.problems[self.env._problem_idx])
+        return self._observation_space
         # return to_flat_dense_binary(self.env.observation_space.predicates, self.env.problems[self.env._problem_idx])
 
+    @property
+    def action_space(self) -> Discrete:
+        return self._action_space
+
     def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
-        state, reward, done, debug_info = self.env.step(action)
-        array_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
+        state, reward, done, debug_info = self._env.step(action)
+        # array_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
+        array_state = to_flat_dense_binary(state.literals, self._problems[self._env._problem_idx])
         return array_state, reward, done, debug_info
 
     def close(self) -> None:
-        return self.env.close()
+        return self._env.close()
 
     def render(self, *args, **kwargs) -> None:
-        return self.env.render(args, kwargs)
+        return self._env.render(args, kwargs)

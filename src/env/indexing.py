@@ -20,8 +20,10 @@ P = TypeVar("P", bound=ArityObject)
 
 
 def _grounded_literal_index(literal, sorted_objects, sorted_predicates):
-    index = tuple(sorted_objects[o] for o in literal.objects)
-    return index + (sorted_predicates[type(literal)],)
+    # index = tuple(sorted_objects[o] for o in literal.objects)
+    index = tuple(sorted_objects[o] for o in literal.variables)
+    # return index + (sorted_predicates[type(literal)],)
+    return index + (sorted_predicates[literal.predicate.name],)
 
 
 def _shape_from_grouped_predicates(num_objects: int,
@@ -56,10 +58,13 @@ def compute_indices(literals: Iterable,  # literals: Iterable[Collection[P]],
     objects = {o: i for i, o in enumerate(sorted(objects))}
 
     indices = collections.defaultdict(list)
-    for i, lits in enumerate(literals):
-        for lit in lits:
-            arity = lit.arity
-            indices[arity].append((i,) + _grounded_literal_index(lit, objects, sorted_pred[arity]))
+    # for i, lits in enumerate(literals):
+    #      for lit in lits:
+    #          arity = lit.arity
+    #          indices[arity].append((i,) + _grounded_literal_index(lit, objects, sorted_pred[arity]))
+    for i, lit in enumerate(literals):
+        arity = lit.predicate.arity
+        indices[arity].append((i,) + _grounded_literal_index(lit, objects, sorted_pred[arity]))
 
     shapes = _shape_from_grouped_predicates(len(objects), sorted_pred.items())
     tupled_indices = {
