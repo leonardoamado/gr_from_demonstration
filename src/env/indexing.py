@@ -1,7 +1,12 @@
 import collections
 import itertools
 import operator
-from typing import Collection, Dict, Iterable, Tuple, Type, TypeVar, Protocol, ClassVar
+from typing import Collection, Dict, Iterable, Tuple, Type, TypeVar, ClassVar
+
+try:
+    from typing import Protocol
+except ImportError:
+    from typing_extensions import Protocol
 
 import numpy as np
 
