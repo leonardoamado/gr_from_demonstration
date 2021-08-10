@@ -31,6 +31,7 @@ class PDDLProblem():
                     continue
                 lit = predicate(*choice)
                 self._all_ground_literals.append(lit)
+        self._all_ground_literals = frozenset(self._all_ground_literals)
 
     @property
     def objects(self):
@@ -149,9 +150,11 @@ class PDDLGymVecWrapper(Env):
         return self._env.seed(seed=seed)
 
     def reset(self) -> np.ndarray:
-        # state, _debug = self._env.reset()
-        state = self._initialStates[self._env._problem_idx]
+        state, _debug = self._env.reset()
+        # state = self._initialStates[self._env._problem_idx]
         vec_state = to_flat_dense_binary(state.literals, self.get_problem())
+        print("vec_state: ", vec_state)
+        print("_debug: ", _debug)
         return vec_state
 
     def get_state(self) -> State:

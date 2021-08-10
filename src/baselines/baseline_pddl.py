@@ -69,8 +69,8 @@ if __name__ == "__main__":
     ### Reuth: Tests to verify that the list of possible grounded literals in consistent
     # unittest.main()
 
-    # env = pddlgym.make("PDDLEnvBlocks-v0")
-    pddl_env = pddlgym.make("PDDLEnvSokoban-v0")
+    pddl_env = pddlgym.make("PDDLEnvBlocks-v0")
+    # pddl_env = pddlgym.make("PDDLEnvSokoban-v0")
     pddl_env.fix_problem_index(2)
     env = PDDLGymVecWrapper(pddl_env)
 
