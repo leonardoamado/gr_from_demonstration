@@ -69,6 +69,14 @@ class LiteralSpaceWrapper(Discrete):
     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
         return self._space.sample()
 
+    def contains(self, x: Any) -> bool:
+        return self._space.contains(x)
+
+    def __repr__(self) -> str:
+        return self._space.__repr__()
+
+    def __eq__(self, o: object) -> bool:
+        return self._space.__eq__(o)
 # What follows was adapted from pddl_env
 
 
