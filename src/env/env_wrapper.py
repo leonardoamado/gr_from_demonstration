@@ -52,7 +52,7 @@ class PDDLProblem():
     @property
     def initial_state(self) -> Set:
         return self._problem.initial_state
-    
+
     @property
     def goal(self) -> Set:
         return self._problem.goal
@@ -73,11 +73,14 @@ class LiteralSpaceWrapper(Discrete):
     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
         return self.np_random.randint(self.n)
 
+
 """
-Reuth: From looking around the meaning of different spaces, if we do need at some point to define separately 
-the action space and observation space instead of "all literals", then action space should be a Literal 
+Reuth: From looking around the meaning of different spaces, if we do need at some point to define separately
+the action space and observation space instead of "all literals", then action space should be a Literal
 space, and observations Literal set space.
 """
+
+
 class LiteralSetSpaceWrapper(Discrete):
     r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
     def __init__(self, wrapped_space: LiteralSetSpace, env: Env) -> None:
@@ -127,7 +130,6 @@ def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
 # Below is the new stuff
 
 
-
 class PDDLGymVecWrapper(Env):
     """
     A wrapper class for pddlgym.core.PDDLEnv that can return states and actions as arrays suitable for
@@ -145,13 +147,15 @@ class PDDLGymVecWrapper(Env):
         self._all_ground_literals = self._problems[self._env._problem_idx].all_ground_literals
         len_ground_literals = len(self._all_ground_literals)
 
-        ### Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
-        ###        that should be the top cap of any vector we choose to create later on
+        # ## Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
+        # ##        that should be the top cap of any vector we choose to create later on
         # self._all_ground_action_literals = self._problems  # TODO Check that I instantiate all possible actions at this point
         # self._observation_space = to_flat_dense_binary(self._all_ground_literals, self._env.problems[self._env._problem_idx])
-        #self._observation_space = vectorize_obs_space(wrapped_env.observation_space, self._all_ground_literals) #to_flat_dense_binary(wrapped_env.observation_space, self._env.problems[self._env._problem_idx])
-        #wrapped_env.observation_space #LiteralSpaceWrapper(wrapped_env.observation_space, self) # type: LiteralSetSpace
-        #self._action_space = to_flat_dense_binary(wrapped_env.action_space, self._env.problems[self._env._problem_idx])  #LiteralSpaceWrapper(wrapped_env.action_space, self) # type: LiteralSpace
+        # self._observation_space = vectorize_obs_space(wrapped_env.observation_space, self._all_ground_literals) 
+        # to_flat_dense_binary(wrapped_env.observation_space, self._env.problems[self._env._problem_idx])
+        # wrapped_env.observation_space #LiteralSpaceWrapper(wrapped_env.observation_space, self) # type: LiteralSetSpace
+        # self._action_space = to_flat_dense_binary(wrapped_env.action_space, self._env.problems[self._env._problem_idx])
+        # LiteralSpaceWrapper(wrapped_env.action_space, self) # type: LiteralSpace
         self._action_space = Discrete(len_ground_literals)
         self._observation_space = Discrete(len_ground_literals)
 
@@ -164,6 +168,7 @@ class PDDLGymVecWrapper(Env):
         vec_state = to_flat_dense_binary(state.literals, self.get_problem())
         print("vec_state: ", vec_state)
         print("_debug: ", _debug)
+        # assert(len(vec_state) == len(self._all_ground_literals))
         return vec_state
 
     def get_state(self) -> State:
