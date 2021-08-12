@@ -5,6 +5,7 @@ from env.indexing import compute_indices
 from gym import Env
 from gym.spaces.discrete import Discrete
 from gym.spaces.space import Space
+from gym.spaces.multi_binary import MultiBinary
 from pddlgym.core import PDDLEnv
 from pddlgym.parser import PDDLProblemParser
 from pddlgym.spaces import LiteralActionSpace, LiteralSetSpace, LiteralSpace
@@ -34,6 +35,10 @@ class PDDLProblem():
         self._all_ground_literals = frozenset(self._all_ground_literals)
 
     @property
+    def actions(self):
+        return self._problem.action_names
+
+    @property
     def objects(self):
         return self._problem.objects
 
@@ -58,20 +63,53 @@ class PDDLProblem():
         return self._problem.goal
 
 
-class LiteralSpaceWrapper(Discrete):
-    r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
-    def __init__(self, wrapped_space: LiteralActionSpace, env: Env) -> None:
-        # assert isinstance(wrapped_env, LiteralActionSpace)
+class LiteralSpaceWrapper(MultiBinary):
+    r""" A wrapper for LiteralSpace from PDDLGym to work with the baselines"""
+    def __init__(self, wrapped_space: LiteralActionSpace, problem: PDDLProblem) -> None:
         self._space = wrapped_space
-        self.n = len(wrapped_space)
-        self_env = env
-        # print("LiteralSpace.preds: ", LiteralSpace.predicates)
-        # super().__init__(len(self._space.all_ground_literals(State(env.get_problem().initial_state,
-        # env.get_problem().objects, env.get_problem().goal))))  # TODO Don't do this only with the initial state
-        super().__init__(self.n)  # TODO Don't do this only with the initial state
+        self.problem = problem
+        self._all_ground_literals = list(problem.all_ground_literals)
+        self.n = len(self._all_ground_literals)
+
+        self.literal_to_index = {}
+        for i, literal in enumerate(self._all_ground_literals):
+            self.literal_to_index[literal] = i
+
+        # super().__init__(self.n)  # TODO Don't do this only with the initial state
+        super().__init__(self.n)
+
+    def to_flat_binary(self, state: State) -> np.ndarray:
+        # TODO Change this to use np.where (which I think is more efficient)
+        vec_state = np.array([0]*self.n)  # np.zeros(self.n)
+        for literal in state[0]:
+            if(literal in self.literal_to_index):
+                vec_state[self.literal_to_index[literal]] = 1
+            else:
+                print("Missed key: ", literal)
+        return vec_state
+
+    def i_to_literal(self, i: int) -> Literal:
+        return self._all_ground_literals[i]
+
+    def vec_to_literals(self, vec_state: np.ndarray) -> Collection:
+        return [self._all_ground_literals[i] for i, v in enumerate(vec_state) if v == 1]
 
     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
         return self.np_random.randint(self.n)
+
+# class LiteralSpaceWrapper(Discrete):
+#     r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
+#     def __init__(self, wrapped_space: LiteralActionSpace, state: State) -> None:
+#         self._space = wrapped_space
+#         self._all_ground_literals = wrapped_space.all_ground_literals(state)
+#         self.n = len(self._all_ground_literals)
+#         # print("LiteralSpace.preds: ", LiteralSpace.predicates)
+#         # super().__init__(len(self._space.all_ground_literals(State(env.get_problem().initial_state,
+#         # env.get_problem().objects, env.get_problem().goal))))  # TODO Don't do this only with the initial state
+#         super().__init__(self.n)  # TODO Don't do this only with the initial state
+
+#     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
+#         return self.np_random.randint(self.n)
 
 
 """
@@ -81,20 +119,28 @@ space, and observations Literal set space.
 """
 
 
-class LiteralSetSpaceWrapper(Discrete):
+class LiteralActionSpaceWrapper(Discrete):
     r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
-    def __init__(self, wrapped_space: LiteralSetSpace, env: Env) -> None:
-        # assert isinstance(wrapped_env, LiteralActionSpace)
+    def __init__(self, wrapped_space: LiteralSetSpace, problem: PDDLProblem) -> None:
         self._space = wrapped_space
-        self.n = len(wrapped_space)
-        self_env = env
-        # print("LiteralSpace.preds: ", LiteralSpace.predicates)
-        # super().__init__(len(self._space.all_ground_literals(State(env.get_problem().initial_state,
-        # env.get_problem().objects, env.get_problem().goal))))  # TODO Don't do this only with the initial state
-        super().__init__(self.n)  # TODO Don't do this only with the initial state
+        self.problem = problem
+        initial_state = State(problem.initial_state, problem.objects, problem.goal)
+        self._all_ground_literals = list(wrapped_space.all_ground_literals(initial_state, valid_only=False))
+        self.n = len(self._all_ground_literals)
 
-    def contains(self, x: Any) -> bool:
-        return self._space.contains(x)
+        self.literal_to_index = {}
+        for i, literal in enumerate(self._all_ground_literals):
+            self.literal_to_index[literal] = i
+
+        super().__init__(self.n)
+
+    # def contains(self, x: Any) -> bool:
+    #     return self._space.contains(x)
+    def i_to_literal(self, i: int) -> Literal:
+        return self._all_ground_literals[i]
+
+    def vec_to_literals(self, vec_state: np.ndarray) -> np.array:
+        return np.array([self._all_ground_literals[i] for i, v in enumerate(vec_state) if v == 1])
 
     def __repr__(self) -> str:
         return self._space.__repr__()
@@ -145,19 +191,16 @@ class PDDLGymVecWrapper(Env):
         self._initialStates = [State(frozenset(problem.initial_state), frozenset(problem.objects), problem.goal)
                                for problem in wrapped_env.problems]
         self._all_ground_literals = self._problems[self._env._problem_idx].all_ground_literals
-        len_ground_literals = len(self._all_ground_literals)
+
 
         # ## Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
         # ##        that should be the top cap of any vector we choose to create later on
-        # self._all_ground_action_literals = self._problems  # TODO Check that I instantiate all possible actions at this point
-        # self._observation_space = to_flat_dense_binary(self._all_ground_literals, self._env.problems[self._env._problem_idx])
-        # self._observation_space = vectorize_obs_space(wrapped_env.observation_space, self._all_ground_literals) 
-        # to_flat_dense_binary(wrapped_env.observation_space, self._env.problems[self._env._problem_idx])
-        # wrapped_env.observation_space #LiteralSpaceWrapper(wrapped_env.observation_space, self) # type: LiteralSetSpace
-        # self._action_space = to_flat_dense_binary(wrapped_env.action_space, self._env.problems[self._env._problem_idx])
-        # LiteralSpaceWrapper(wrapped_env.action_space, self) # type: LiteralSpace
-        self._action_space = Discrete(len_ground_literals)
-        self._observation_space = Discrete(len_ground_literals)
+        problem = self._problems[self._env._problem_idx]
+        self._action_space = LiteralActionSpaceWrapper(wrapped_env.action_space, problem)
+        # self._action_space = LiteralSpaceWrapper(wrapped_env.action_space, self)
+        self._observation_space = LiteralSpaceWrapper(wrapped_env.observation_space, problem)
+        # self._action_space = Discrete(len_ground_literals)
+        # self._observation_space = Discrete(len_ground_literals)
 
     def seed(self, seed: int) -> List[int]:
         return self._env.seed(seed=seed)
@@ -165,11 +208,17 @@ class PDDLGymVecWrapper(Env):
     def reset(self) -> np.ndarray:
         state, _debug = self._env.reset()
         # state = self._initialStates[self._env._problem_idx]
-        vec_state = to_flat_dense_binary(state.literals, self.get_problem())
-        print("vec_state: ", vec_state)
-        print("_debug: ", _debug)
+        # vec_state = to_flat_dense_binary(state.literals, self.get_problem())
+        vec_state = self._observation_space.to_flat_binary(state)
+        # print("vec_state: ", vec_state)
+        # print("_debug: ", _debug)
+        # print("vec_state", len(vec_state))
+        # # print("vec_state shape", vec_state.shape)
+        # print("all_ground_literals", len(self._all_ground_literals))
+        # print("all_ground_literals", self._all_ground_literals)
+        # print("action_space", self._action_space)
         # assert(len(vec_state) == len(self._all_ground_literals))
-        return vec_state
+        return vec_state  # TODO I'm returning zero here because the Baselines don't like a vector return
 
     def get_state(self) -> State:
         return self._env.get_state()
@@ -179,18 +228,19 @@ class PDDLGymVecWrapper(Env):
 
     @property
     def observation_space(self) -> np.ndarray:
-        return self._observation_space
-        # return to_flat_dense_binary(self.env.observation_space.predicates, self.env.problems[self.env._problem_idx])
+        return MultiBinary(self._observation_space.n)  # Responding with a new class as a workaround for this issue in the baselines https://github.com/DLR-RM/stable-baselines3/issues/513
+        # return self._observation_space
 
     @property
     def action_space(self) -> Discrete:
         return self._action_space
 
     def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
-        state, reward, done, debug_info = self._env.step(action)
-        # array_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
-        array_state = to_flat_dense_binary(state.literals, self._problems[self._env._problem_idx])
-        return array_state, reward, done, debug_info
+        state, reward, done, debug_info = self._env.step(self._action_space.i_to_literal(action))
+        # vec_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
+        # vec_state = to_flat_dense_binary(state.literals, self._problems[self._env._problem_idx])
+        vec_state = self._observation_space.to_flat_binary(state)
+        return vec_state, reward, done, debug_info
 
     def close(self) -> None:
         return self._env.close()

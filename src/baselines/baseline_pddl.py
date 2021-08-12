@@ -8,8 +8,10 @@ import gym
 import pddlgym
 from env.env_wrapper import PDDLGymVecWrapper
 from stable_baselines3 import PPO, DQN
-
-import unittest
+import matplotlib
+matplotlib.use('TkAgg') # We need this for the environment to render in Mac
+# matplotlib.use('nbAgg')
+# matplotlib.use('WebAgg')
 
 
 # configs for environment
@@ -22,7 +24,7 @@ if __name__ == "__main__":
 
     pddl_env = pddlgym.make("PDDLEnvBlocks-v0")
     # pddl_env = pddlgym.make("PDDLEnvSokoban-v0")
-    pddl_env.fix_problem_index(2)
+    pddl_env.fix_problem_index(0)
     env = PDDLGymVecWrapper(pddl_env)
     # env = gym.make("CartPole-v1") # To check what kind of object we get as an observation here
 
@@ -31,9 +33,11 @@ if __name__ == "__main__":
     model.learn(total_timesteps=10000)
 
     obs = env.reset()
-    for i in range(1000):
+    for i in range(10):
         action, _states = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
+        print("State", env._observation_space.vec_to_literals(obs))
+        print("Action", env.action_space.i_to_literal(action))
         env.render()
         if done:
             obs = env.reset()
