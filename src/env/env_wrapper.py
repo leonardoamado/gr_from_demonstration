@@ -63,6 +63,30 @@ class PDDLProblem():
         return self._problem.goal
 
 
+# What follows was adapted from pddl_env
+def to_dense_binary(literals: Sequence[Collection[Predicate]],
+                    problem: PDDLProblem,
+                    dtype: type = np.float32) -> Dict[int, np.ndarray]:
+    # indices, shapes = compute_indices(literals, problem.objectmap.objects, problem.predicates)
+    indices, shapes = compute_indices(literals, problem.objects, problem.predicates.values())
+
+    n = len(literals)
+    features = {arity: np.zeros((n,) + shape, dtype=dtype) for arity, shape in shapes.items()}
+    for k, idx in indices.items():
+        features[k][idx] = 1
+
+    return features
+
+
+def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
+                         problem: PDDLProblem,
+                         dtype: type = np.float32) -> np.ndarray:
+    features = to_dense_binary(literals, problem, dtype=dtype)
+    return np.concatenate(tuple(x.reshape((x.shape[0], -1)) for x in features.values()), axis=-1)
+
+# Below is the new stuff
+
+
 class LiteralSpaceWrapper(MultiBinary):
     r""" A wrapper for LiteralSpace from PDDLGym to work with the baselines"""
     def __init__(self, wrapped_space: LiteralActionSpace, problem: PDDLProblem) -> None:
@@ -87,6 +111,7 @@ class LiteralSpaceWrapper(MultiBinary):
             else:
                 print("Missed key: ", literal)
         return vec_state
+        # return to_flat_dense_binary(state.literals, self.problem)
 
     def i_to_literal(self, i: int) -> Literal:
         return self._all_ground_literals[i]
@@ -150,30 +175,6 @@ class LiteralActionSpaceWrapper(Discrete):
 
     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
         return self.np_random.randint(self.n)
-
-
-# What follows was adapted from pddl_env
-def to_dense_binary(literals: Sequence[Collection[Predicate]],
-                    problem: PDDLProblem,
-                    dtype: type = np.float32) -> Dict[int, np.ndarray]:
-    # indices, shapes = compute_indices(literals, problem.objectmap.objects, problem.predicates)
-    indices, shapes = compute_indices(literals, problem.objects, problem.predicates.values())
-
-    n = len(literals)
-    features = {arity: np.zeros((n,) + shape, dtype=dtype) for arity, shape in shapes.items()}
-    for k, idx in indices.items():
-        features[k][idx] = 1
-
-    return features
-
-
-def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
-                         problem: PDDLProblem,
-                         dtype: type = np.float32) -> np.ndarray:
-    features = to_dense_binary(literals, problem, dtype=dtype)
-    return np.concatenate(tuple(x.reshape((x.shape[0], -1)) for x in features.values()), axis=-1)
-
-# Below is the new stuff
 
 
 class PDDLGymVecWrapper(Env):

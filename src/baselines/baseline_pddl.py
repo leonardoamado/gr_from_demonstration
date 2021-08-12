@@ -28,8 +28,8 @@ if __name__ == "__main__":
     env = PDDLGymVecWrapper(pddl_env)
     # env = gym.make("CartPole-v1") # To check what kind of object we get as an observation here
 
-    # model = PPO("MlpPolicy", env, verbose=1)
-    model = DQN("MlpPolicy", env, verbose=1)
+    model = PPO("MlpPolicy", env, verbose=1)
+    # model = DQN("MlpPolicy", env, verbose=1)
     model.learn(total_timesteps=10000)
 
     obs = env.reset()
