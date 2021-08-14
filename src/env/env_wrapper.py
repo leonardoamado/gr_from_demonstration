@@ -87,19 +87,21 @@ def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
 # Below is the new stuff
 
 
-class LiteralSpaceWrapper(MultiBinary):
-    r""" A wrapper for LiteralSpace from PDDLGym to work with the baselines"""
+class SetLiteralSpaceWrapper(MultiBinary):
+    r""" A wrapper for LiteralSpace from PDDLGym to work with the baselines using an ordered set representation"""
     def __init__(self, wrapped_space: LiteralActionSpace, problem: PDDLProblem) -> None:
         self._space = wrapped_space
         self.problem = problem
         self._all_ground_literals = list(problem.all_ground_literals)
+        self._all_ground_literals.sort()
         self.n = len(self._all_ground_literals)
 
         self.literal_to_index = {}
         for i, literal in enumerate(self._all_ground_literals):
             self.literal_to_index[literal] = i
 
-        # super().__init__(self.n)  # TODO Don't do this only with the initial state
+        # print("Literal order: ", self._all_ground_literals)
+
         super().__init__(self.n)
 
     def to_flat_binary(self, state: State) -> np.ndarray:
@@ -113,6 +115,9 @@ class LiteralSpaceWrapper(MultiBinary):
         return vec_state
         # return to_flat_dense_binary(state.literals, self.problem)
 
+    def contains(self, x: Any) -> bool:
+        return self._space.contains(self._all_ground_literals[x])
+
     def i_to_literal(self, i: int) -> Literal:
         return self._all_ground_literals[i]
 
@@ -122,45 +127,36 @@ class LiteralSpaceWrapper(MultiBinary):
     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
         return self.np_random.randint(self.n)
 
-# class LiteralSpaceWrapper(Discrete):
-#     r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
-#     def __init__(self, wrapped_space: LiteralActionSpace, state: State) -> None:
-#         self._space = wrapped_space
-#         self._all_ground_literals = wrapped_space.all_ground_literals(state)
-#         self.n = len(self._all_ground_literals)
-#         # print("LiteralSpace.preds: ", LiteralSpace.predicates)
-#         # super().__init__(len(self._space.all_ground_literals(State(env.get_problem().initial_state,
-#         # env.get_problem().objects, env.get_problem().goal))))  # TODO Don't do this only with the initial state
-#         super().__init__(self.n)  # TODO Don't do this only with the initial state
-
-#     def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
-#         return self.np_random.randint(self.n)
+    @property
+    def all_ground_literals(self):
+        return self._all_ground_literals
 
 
-"""
-Reuth: From looking around the meaning of different spaces, if we do need at some point to define separately
-the action space and observation space instead of "all literals", then action space should be a Literal
-space, and observations Literal set space.
-"""
-
-
-class LiteralActionSpaceWrapper(Discrete):
-    r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines"""
+class DiscreteLiteralActionSpaceWrapper(Discrete):
+    r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines using a discrete representation """
     def __init__(self, wrapped_space: LiteralSetSpace, problem: PDDLProblem) -> None:
         self._space = wrapped_space
         self.problem = problem
         initial_state = State(problem.initial_state, problem.objects, problem.goal)
         self._all_ground_literals = list(wrapped_space.all_ground_literals(initial_state, valid_only=False))
+        self._all_ground_literals.sort()
         self.n = len(self._all_ground_literals)
 
         self.literal_to_index = {}
         for i, literal in enumerate(self._all_ground_literals):
             self.literal_to_index[literal] = i
 
+        # print("Action order: ", self._all_ground_literals)
+
         super().__init__(self.n)
 
-    # def contains(self, x: Any) -> bool:
-    #     return self._space.contains(x)
+    @property
+    def all_ground_literals(self):
+        return self._all_ground_literals
+
+    def contains(self, x: Any) -> bool:
+        return self._space.contains(self._all_ground_literals[x])
+
     def i_to_literal(self, i: int) -> Literal:
         return self._all_ground_literals[i]
 
@@ -191,15 +187,13 @@ class PDDLGymVecWrapper(Env):
         self._problems = [PDDLProblem(problem) for problem in wrapped_env.problems]
         self._initialStates = [State(frozenset(problem.initial_state), frozenset(problem.objects), problem.goal)
                                for problem in wrapped_env.problems]
-        self._all_ground_literals = self._problems[self._env._problem_idx].all_ground_literals
-
 
         # ## Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
         # ##        that should be the top cap of any vector we choose to create later on
         problem = self._problems[self._env._problem_idx]
-        self._action_space = LiteralActionSpaceWrapper(wrapped_env.action_space, problem)
+        self._action_space = DiscreteLiteralActionSpaceWrapper(wrapped_env.action_space, problem)
         # self._action_space = LiteralSpaceWrapper(wrapped_env.action_space, self)
-        self._observation_space = LiteralSpaceWrapper(wrapped_env.observation_space, problem)
+        self._observation_space = SetLiteralSpaceWrapper(wrapped_env.observation_space, problem)
         # self._action_space = Discrete(len_ground_literals)
         # self._observation_space = Discrete(len_ground_literals)
 
@@ -228,7 +222,7 @@ class PDDLGymVecWrapper(Env):
         return self._problems[self._env._problem_idx]
 
     @property
-    def observation_space(self) -> np.ndarray:
+    def observation_space(self) -> Space:
         return MultiBinary(self._observation_space.n)  # Responding with a new class as a workaround for this issue in the baselines https://github.com/DLR-RM/stable-baselines3/issues/513
         # return self._observation_space
 
@@ -236,10 +230,17 @@ class PDDLGymVecWrapper(Env):
     def action_space(self) -> Discrete:
         return self._action_space
 
+    @property
+    def all_ground_literals(self):
+        return self._observation_space.all_ground_literals
+
     def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+        prev_s = self._env._state  # Hack to get it to learn invalid actions
         state, reward, done, debug_info = self._env.step(self._action_space.i_to_literal(action))
+        if state == prev_s:
+            # print("Invalid  transition chosen")
+            reward = -1
         # vec_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
-        # vec_state = to_flat_dense_binary(state.literals, self._problems[self._env._problem_idx])
         vec_state = self._observation_space.to_flat_binary(state)
         return vec_state, reward, done, debug_info
 

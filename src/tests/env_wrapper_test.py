@@ -21,13 +21,13 @@ class TestListElements(unittest.TestCase):
         pddl_env = pddlgym.make("PDDLEnvSokoban-v0")
         pddl_env.fix_problem_index(2)
         env1 = PDDLGymVecWrapper(pddl_env)
-        all_literals1 = env1._all_ground_literals
+        all_literals1 = env1.all_ground_literals
         self.all_literals1 = all_literals1
 
         pddl_env = pddlgym.make("PDDLEnvSokoban-v0")
         pddl_env.fix_problem_index(2)
         env2 = PDDLGymVecWrapper(pddl_env)
-        all_literals2 = env2._all_ground_literals
+        all_literals2 = env2.all_ground_literals
         self.all_literals2 = all_literals2
         self.assertCountEqual(self.all_literals1, self.all_literals2)
 
@@ -35,13 +35,13 @@ class TestListElements(unittest.TestCase):
         pddl_env = pddlgym.make("PDDLEnvBlocks-v0")
         pddl_env.fix_problem_index(2)
         env1 = PDDLGymVecWrapper(pddl_env)
-        all_literals1 = env1._all_ground_literals
+        all_literals1 = env1.all_ground_literals
         self.all_literals1 = all_literals1
 
         pddl_env = pddlgym.make("PDDLEnvBlocks-v0")
         pddl_env.fix_problem_index(2)
         env2 = PDDLGymVecWrapper(pddl_env)
-        all_literals2 = env2._all_ground_literals
+        all_literals2 = env2.all_ground_literals
         self.all_literals2 = all_literals2
         self.assertCountEqual(self.all_literals1, self.all_literals2)
 
@@ -49,13 +49,13 @@ class TestListElements(unittest.TestCase):
         pddl_env = pddlgym.make("PDDLEnvMinecraft-v0")
         pddl_env.fix_problem_index(2)
         env1 = PDDLGymVecWrapper(pddl_env)
-        all_literals1 = env1._all_ground_literals
+        all_literals1 = env1.all_ground_literals
         self.all_literals1 = all_literals1
 
         pddl_env = pddlgym.make("PDDLEnvMinecraft-v0")
         pddl_env.fix_problem_index(2)
         env2 = PDDLGymVecWrapper(pddl_env)
-        all_literals2 = env2._all_ground_literals
+        all_literals2 = env2.all_ground_literals
         self.all_literals2 = all_literals2
         self.assertCountEqual(self.all_literals1, self.all_literals2)
 
