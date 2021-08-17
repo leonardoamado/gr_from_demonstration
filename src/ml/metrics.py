@@ -51,7 +51,8 @@ def values_to_distribution(values):
         policy[state] = softmax(values[state])
     return policy
 
-def kl_divergence_norm(traj, p, actions, epsilon=0.):
+def kl_divergence_norm(traj, pol, actions, epsilon=0.):
+    p = pol.q_table
     # kl divergence using epsilon-greedy policies
     # aggregates all divergences by averaging them
     p_traj = traj_to_policy(traj, actions)
@@ -68,20 +69,22 @@ def kl_divergence_norm(traj, p, actions, epsilon=0.):
         distances.append(kl_divergence(qp1, qp2))
     return mean(distances)
 
-def kl_divergence_norm_softmax(traj, p, actions, epsilon=0.):
+def kl_divergence_norm_softmax(traj, pol, actions):
     # copy paste of kl divergence but with softmax
     # because I'm lazy
+    p = pol.q_table
     p_traj = traj_to_policy(traj, actions)
     # p1 = values_to_policy(p1, epsilon)
     policy = values_to_distribution(p)
-
+    #print(p)
     distances = []
     for i, state in enumerate(p_traj):
+        #print(state)
         if state not in policy:
             add_dummy_policy(policy, state, actions)
         qp1 = p_traj[state]
         qp2 = policy[state]
-        # print(f'Best action for traj and policy, state {i}: {np.argmax(qp1)} - {np.argmax(qp2)}')
+        #print(f'Best action for traj and policy, state {i}: {np.argmax(qp1)} - {np.argmax(qp2)}')
         distances.append(kl_divergence(qp1, qp2))
     return mean(distances)
 

@@ -81,12 +81,12 @@ class TabularQLearner(RLAgent):
                  env,
                  init_obs,
                  problem=None,
-                 episodes=100000,
+                 episodes=30000,
                  decaying_eps=True,
-                 eps=0.9,
-                 alpha=0.001,
-                 decay=0.0000002,
-                 gamma=0.99,
+                 eps=1.0,
+                 alpha=0.5,
+                 decay=0.000002,
+                 gamma=0.9,
                  action_list=None,
                  check_partial_goals=True,
                  valid_only=False,
@@ -171,6 +171,8 @@ class TabularQLearner(RLAgent):
         done_times = 0
         patience = 0
         max_r = float("-inf")
+        init, _ = self.env.reset()
+        print('LEARNING FOR GOAL:', init.goal )
         for n in range(self.episodes):
             episode_r = 0
             state, info = self.env.reset()

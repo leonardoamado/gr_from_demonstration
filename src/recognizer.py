@@ -12,11 +12,13 @@ sys.path.append(os.path.abspath(os.path.join('.')))
 sys.path.append(os.path.abspath(os.path.join('..')))
 import dill
 import numpy as np
+import argparse
 from pddlgym_planners.fd import FD
 
-from pddlgym.core import InvalidAction
-
+from pddlgym.core import InvalidAction, PDDLEnv
+#from pddlgym import PDDLEnv
 import pddlgym
+
 
 
 """
@@ -40,35 +42,85 @@ DYNAMIC_ACTION_SPACE = True
 
 
 # current_method = DQN
-def train_policies(env, method=TabularQLearner, n_goals=3):
-    train = True
-    policies = []
-    robots = 1
 
-    offsets = {}
 
-    predicates = env.observation_space.predicates
+class Recognizer:
+    def __init__(self, method=TabularQLearner, evaluatation=m.kl_divergence_norm_softmax,training=None, recog=None):
+        self.method = method
+        self.evaluate_goal = evaluatation
+        if not training:
+            self.train_policies = self.train
+        else:
+            self.train_policies = training
+        if not recog:
+            self.recognize_process = self.recognize_goal_dummy
+        else:    
+            self.recognize_process = recog
+    
+    '''
+    Performs the entire process of goal recognition using the user assigned functions.
+    @return the predicted goal
+    '''
+    def complete_recognition(self, env, n_goals=3,obs=None, real_goal=None):
+        policies, actions = self.train_policies(env, n_goals)
+        goal = self.recognize_process(env, policies, actions, obs, real_goal)
+        return goal
+    
 
-    state_representation = []
+    '''
+    Performs a dummy goal recognition process, where observations are not considered.
+    
+    The first goal is considered the correct one and a plan is computed for the goal
+    which serves as a full observation trace.
+    @return a goal
+    '''
+    def recognize_goal_dummy(self, env, policies, actions, obs, real_goal, n_goals=3):
+        planner = FD()
+        traj = []
+        divergences = []
+        list_of_goals = []
 
-    actions = None
-
-    current_method = method
-
-    starting_problem_index = 1
-
-    for n in range(n_goals):
-        time.sleep(3)
-        env.fix_problem_index(starting_problem_index + n)
-        init, _ = env.reset()
-        if not actions:
-            # get all literals in its grounded version
-            actions = list(env.action_space.all_ground_literals(init, valid_only=False))
-        # policy = TabularQLearner(env, init, problem=n, action_list=actions)
-        # build method to learn policy
-        policy = current_method(env, init, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
-        policies.append(policy)
-        if train:
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            #print(f'GOAL {init.goal}')
+            list_of_goals.append(init.goal)
+            # traj is an action pair tuple, need to map this to state action number pair
+            if len(traj) == 0:
+                print(f"Dummy recog, PLANNING FOR GOAL {init.goal}")
+                plan = planner(env.domain, init)
+                traj = []
+                for a in plan:
+                    state_action_pair = (init.literals, a)
+                    traj.append(state_action_pair)
+                    init, _, _, _ = env.step(a)
+                ds = {}
+                print(plan)     
+            divergence = self.evaluate_goal(traj, policies[n], actions)
+            divergences.append(divergence)
+        print(divergences)
+        div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
+        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
+        return goal
+    
+    '''
+    Train a policy for each one of the goals. 
+    @return a list of policies and and the possible actions of the environment
+    ''' 
+    def train(self, env, n_goals=3):
+        policies = []
+        actions = None
+        starting_problem_index = 0
+        for n in range(n_goals):
+            time.sleep(3)
+            env.fix_problem_index(starting_problem_index + n)
+            init, _ = env.reset()
+            if not actions:
+                # get all literals in its grounded version
+                actions = list(env.action_space.all_ground_literals(init, valid_only=False))
+            # build method to learn policy
+            policy = self.method(env, init, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
+            policies.append(policy)
             done = False
             print(f"Training policy for goal {n}")
             while not done:
@@ -76,77 +128,54 @@ def train_policies(env, method=TabularQLearner, n_goals=3):
                     policy.learn()
                     done = True
                 except ValueError as e:
-                    # if this error happened, it means that the policy did not learn
-                    # how to reach the goal after a large number of training steps.
-                    # In this case, reset the learning and try again.
-                    # (this was just a dumb fix to when the agent randomly didn't reach the goal
-                    # before epsilon getting too low)
                     print(e)
                     init, _ = env.reset()
-                    policies[-1] = current_method(env, init, problem=n, action_list=actions)
+                    policies[-1] = self.method(env, init, problem=n, action_list=actions)
                     policy = policies[-1]
-    return policies, actions
+        return policies, actions
 
-
-def plot_divergences(env, actions, n_goals=3):
-
-    planner = FD()
-
-    epsilons = [0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
-
-    for n in range(n_goals):
-        # for each goal, get an optimal plan and compute the
-        # divergence of each policy to this trajectory.
-
-        env.fix_problem_index(n)
-        init, _ = env.reset()
-        print(f"PLANNING FOR GOAL {init.goal}")
-        plan = planner(env.domain, init)
-
-        # traj is an action pair tuple, need to map this to state action number pair
-        traj = []
-        for a in plan:
-            state_action_pair = (init.literals, a)
-            traj.append(state_action_pair)
-            init, _, _, _ = env.step(a)
-        ds = {}
-        
-        # compute policy with multiple epsilon values (only relevant when not doing softmax)
-        for eps in epsilons:
-            
-            # pretty bad implementation of a plot, but w.e.
-            divergences = []
-            for i in range(n_goals):
-                divergence = m.kl_divergence_norm_softmax(traj, policies[i].q_table, actions, epsilon=eps)
-                divergences.append(divergence)
-            # d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
-            # d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
-            # d3 = m.kl_divergence_norm(traj, policies[2].q_table, actions, epsilon=eps)
-            # d4 = m.kl_divergence_norm(traj, policies[3].q_table, actions, epsilon=eps)
-            # d1 = m.kl_divergence_norm_softmax(traj, policies[0].q_table, actions, epsilon=eps)
-            # d2 = m.kl_divergence_norm_softmax(traj, policies[1].q_table, actions, epsilon=eps)
-            # d3 = m.kl_divergence_norm_softmax(traj, policies[2].q_table, actions, epsilon=eps)
-            # d4 = m.kl_divergence_norm_softmax(traj, policies[3].q_table, actions, epsilon=eps)
-            # if f'p{n}' not in ds:
-            #     ds[f'p{n}'] = []
-            # ds[f'p{n}'].append([d1, d2, d3, d4])
-            # m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
-            m.plot_mean_divergence(n, eps, divergences)
-
-
+         
 
 
 
 if __name__ == "__main__":
-
-    env = pddlgym.make("PDDLEnvBlocks_gr-v0",
-                        raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-                        dynamic_action_space=DYNAMIC_ACTION_SPACE)
-    #env = PDDLEnv(“pddl/sokoban.pddl”, “pddl/sokoban”)
-    policies, actions  = train_policies(env)
-    with open('policies_saved.pkl', 'wb') as file:
-        dill.dump(policies, file)
-    with open('saved.pkl', 'wb') as file:
-        dill.dump(actions, file)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", help="PDDL domain file",
+                    type=str, default='dummy')
+    parser.add_argument("-p", help="Folder with all problems",
+                    type=str)
+    parser.add_argument("-t", help="Computing policies or loading and recognizing",
+                    type=str, default='learn')
+    parser.add_argument("-pl", help="Load or save policies file",
+                    type=str, default='policies_saved.pkl')
+    parser.add_argument("-a", help="Load or save actions file",
+                    type=str, default='saved.pkl')
+    args = parser.parse_args()
+    print(args.d)
+    if args.d == 'dummy':
+        env = pddlgym.make("PDDLEnvBlocks_gr-v0",
+                            raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        #env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/')
+    else:
+        env = PDDLEnv(args.d, args.p)
+    recog = Recognizer()
+    if args.t == 'complete':
+        recog.complete_recognition(env)
+    if args.t == 'learn':
+        policies, actions = recog.train_policies(env)
+        with open(args.pl, 'wb') as file:
+            dill.dump(policies, file)
+        with open(args.a, 'wb') as file:
+            dill.dump(actions, file)
+    if args.t == 'load':
+        if args.t == 'load':
+            with open(args.pl, 'rb') as file:
+                policies = dill.load(file)
+            with open(args.a, 'rb') as file:
+                actions = dill.load(file) 
+        print(policies)
+        n_goals = 3 
+        recog.recognize_goal_dummy(env,policies, actions,n_goals)
     
     
