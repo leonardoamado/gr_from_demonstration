@@ -67,7 +67,6 @@ class PDDLProblem():
 def to_dense_binary(literals: Sequence[Collection[Predicate]],
                     problem: PDDLProblem,
                     dtype: type = np.float32) -> Dict[int, np.ndarray]:
-    # indices, shapes = compute_indices(literals, problem.objectmap.objects, problem.predicates)
     indices, shapes = compute_indices(literals, problem.objects, problem.predicates.values())
 
     n = len(literals)
@@ -78,6 +77,7 @@ def to_dense_binary(literals: Sequence[Collection[Predicate]],
     return features
 
 
+# Deprecated in class below
 def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
                          problem: PDDLProblem,
                          dtype: type = np.float32) -> np.ndarray:
@@ -85,6 +85,54 @@ def to_flat_dense_binary(literals: Sequence[Collection[Literal]],
     return np.concatenate(tuple(x.reshape((x.shape[0], -1)) for x in features.values()), axis=-1)
 
 # Below is the new stuff
+
+
+class HashLiteralSpaceWrapper(MultiBinary):
+    r""" A wrapper for LiteralSpace from PDDLGym to work with the baselines using a hashing-order representation
+    This code was adapted from https://github.com/gehring/pddlenv.
+    """
+    def __init__(self, wrapped_space: LiteralActionSpace, problem: PDDLProblem) -> None:
+        self._space = wrapped_space
+        self.problem = problem
+        # indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
+        # self.indices, shapes = indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
+        self.indices = self.compute_indices(self.problem)
+        self._all_ground_literals = list(indices.keys())
+        self.n = len(self._all_ground_literals)
+
+        super().__init__(self.n)
+
+    def compute_indices(self, problem: PDDLProblem) -> Dict[Literal, int]:
+        print(problem.objects)
+        print(problem.objectmap)
+        for name in problem.predicates:
+            predicate = problem.predicates[name]
+            print(predicate)
+            print(predicate.arity)
+        # This sucks
+        exit()
+
+    def to_flat_binary(self, state: State) -> np.ndarray:
+        # return to_flat_dense_binary(state[0], self.problem)
+        features = to_dense_binary(state[0], self.problem, dtype=dtype)
+        # return np.concatenate(tuple(x.reshape((x.shape[0], -1)) for x in features.values()), axis=-1)
+        return np.concatenate(tuple(x.reshape((x.shape[0], -1)) for x in features.values()), axis=None)
+
+    def contains(self, x: Any) -> bool:
+        return self._space.contains(self._all_ground_literals[x])
+
+    def i_to_literal(self, i: int) -> Literal:
+        return self.indices[i]
+
+    def vec_to_literals(self, vec_state: np.ndarray) -> Collection:
+        return [self._all_ground_literals[i] for i, v in enumerate(vec_state) if v == 1]
+
+    def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
+        return self.np_random.randint(self.n)
+
+    @property
+    def all_ground_literals(self):
+        return self._all_ground_literals
 
 
 class SetLiteralSpaceWrapper(MultiBinary):
@@ -134,13 +182,17 @@ class SetLiteralSpaceWrapper(MultiBinary):
 
 class DiscreteLiteralActionSpaceWrapper(Discrete):
     r""" A wrapper for LiteralActionSpace from PDDLGym to work with the baselines using a discrete representation """
-    def __init__(self, wrapped_space: LiteralSetSpace, problem: PDDLProblem) -> None:
+    def __init__(self, wrapped_space: LiteralSetSpace, problem: PDDLProblem, env: Env = None, valid_only=False) -> None:
         self._space = wrapped_space
         self.problem = problem
         initial_state = State(problem.initial_state, problem.objects, problem.goal)
         self._all_ground_literals = list(wrapped_space.all_ground_literals(initial_state, valid_only=False))
         self._all_ground_literals.sort()
         self.n = len(self._all_ground_literals)
+        self.env = env
+        if(valid_only):
+            print("Sampling only valid actions")
+        self.valid_only = valid_only
 
         self.literal_to_index = {}
         for i, literal in enumerate(self._all_ground_literals):
@@ -169,8 +221,13 @@ class DiscreteLiteralActionSpaceWrapper(Discrete):
     def __eq__(self, o: object) -> bool:
         return self._space.__eq__(o)
 
-    def sample(self) -> int:  # TODO Check how the sampling in PDDLGym works
-        return self.np_random.randint(self.n)
+    def sample(self) -> int:
+        if self.valid_only:  # Check that this is an actually valid action
+            # print("Returning only valid actions")
+            literal = self._space.sample_literal(self.env.get_state())
+            return self.literal_to_index[literal]
+        else:
+            return self.np_random.randint(self.n)
 
 
 class PDDLGymVecWrapper(Env):
@@ -181,7 +238,7 @@ class PDDLGymVecWrapper(Env):
     Vectorization logic adapted from the [pddlenv](https://github.com/gehring/pddlenv) project following [discussions on the PDDLGym project](https://github.com/tomsilver/pddlgym/issues/58)
     """
 
-    def __init__(self, wrapped_env: PDDLEnv) -> None:
+    def __init__(self, wrapped_env: PDDLEnv, only_valid_actions=True) -> None:
         super().__init__()
         self._env = wrapped_env
         self._problems = [PDDLProblem(problem) for problem in wrapped_env.problems]
@@ -191,11 +248,13 @@ class PDDLGymVecWrapper(Env):
         # ## Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
         # ##        that should be the top cap of any vector we choose to create later on
         problem = self._problems[self._env._problem_idx]
-        self._action_space = DiscreteLiteralActionSpaceWrapper(wrapped_env.action_space, problem)
-        # self._action_space = LiteralSpaceWrapper(wrapped_env.action_space, self)
+        if only_valid_actions is True:
+            self._action_space = DiscreteLiteralActionSpaceWrapper(wrapped_env.action_space, problem, wrapped_env, True)
+        else:
+            self._action_space = DiscreteLiteralActionSpaceWrapper(wrapped_env.action_space, problem)
+        # self._observation_space = HashLiteralSpaceWrapper(wrapped_env.observation_space, problem)
         self._observation_space = SetLiteralSpaceWrapper(wrapped_env.observation_space, problem)
-        # self._action_space = Discrete(len_ground_literals)
-        # self._observation_space = Discrete(len_ground_literals)
+        self.goal_counter = 0
 
     def seed(self, seed: int) -> List[int]:
         return self._env.seed(seed=seed)
@@ -234,12 +293,20 @@ class PDDLGymVecWrapper(Env):
     def all_ground_literals(self):
         return self._observation_space.all_ground_literals
 
+    @property
+    def all_ground_actions(self):
+        return self._action_space.all_ground_literals
+
     def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         prev_s = self._env._state  # Hack to get it to learn invalid actions
         state, reward, done, debug_info = self._env.step(self._action_space.i_to_literal(action))
         if state == prev_s:
             # print("Invalid  transition chosen")
             reward = -1
+        if done:
+            # print("Goal Reached, reward: ", reward)
+            self.goal_counter += 1
+
         # vec_state = to_flat_dense_binary(state, self.env.problems[self.env._problem_idx])
         vec_state = self._observation_space.to_flat_binary(state)
         return vec_state, reward, done, debug_info
@@ -249,3 +316,9 @@ class PDDLGymVecWrapper(Env):
 
     def render(self, *args, **kwargs) -> None:
         return self._env.render(args, kwargs)
+
+    def print_debug(self) -> str:
+        s = str(self.all_ground_literals)
+        s += "\n"
+        s += str(self.all_ground_actions)
+        return s
