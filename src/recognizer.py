@@ -18,6 +18,7 @@ from pddlgym_planners.fd import FD
 from pddlgym.core import InvalidAction, PDDLEnv
 #from pddlgym import PDDLEnv
 import pddlgym
+import random
 
 
 
@@ -42,7 +43,22 @@ DYNAMIC_ACTION_SPACE = True
 
 
 # current_method = DQN
+#This function will be moved to another file, leave this here for now
+def remove_obs(instance, observability):
+    new_obs = []
+    n_observations = len(instance)
 
+    # Number of observations to remove
+    n_remove = int(n_observations*(1-observability))
+
+    # Randomly sample indices to remove from the states list
+    indices = sorted(random.sample(range(0, n_observations), n_remove))
+    
+    # Create new list with states except the indices to remove
+    for i in range(n_observations):
+        if i not in indices:
+            new_obs.append(instance[i])
+    return new_obs
 
 class Recognizer:
     def __init__(self, method=TabularQLearner, evaluatation=m.kl_divergence_norm_softmax,training=None, recog=None):
@@ -83,8 +99,8 @@ class Recognizer:
         for n in range(n_goals):
             env.fix_problem_index(n)
             init, _ = env.reset()
-            #print(f'GOAL {init.goal}')
             list_of_goals.append(init.goal)
+            
             # traj is an action pair tuple, need to map this to state action number pair
             if len(traj) == 0:
                 print(f"Dummy recog, PLANNING FOR GOAL {init.goal}")
@@ -94,8 +110,8 @@ class Recognizer:
                     state_action_pair = (init.literals, a)
                     traj.append(state_action_pair)
                     init, _, _, _ = env.step(a)
-                ds = {}
-                print(plan)     
+                #Forcefully remove observations, just for testing    
+                traj = remove_obs(traj, 0.5)
             divergence = self.evaluate_goal(traj, policies[n], actions)
             divergences.append(divergence)
         print(divergences)
@@ -153,10 +169,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args.d)
     if args.d == 'dummy':
-        env = pddlgym.make("PDDLEnvBlocks_gr-v0",
-                            raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+       # env = pddlgym.make("PDDLEnvBlocks_gr-v0",
+       #                     raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+       #                     dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                             dynamic_action_space=DYNAMIC_ACTION_SPACE)
-        #env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/')
     else:
         env = PDDLEnv(args.d, args.p)
     recog = Recognizer()
@@ -174,8 +191,7 @@ if __name__ == "__main__":
                 policies = dill.load(file)
             with open(args.a, 'rb') as file:
                 actions = dill.load(file) 
-        print(policies)
         n_goals = 3 
-        recog.recognize_goal_dummy(env,policies, actions,n_goals)
+        recog.recognize_goal_dummy(env,policies, actions, None, None)
     
     
