@@ -7,6 +7,16 @@ import pyperplan.pddl.parser as pyparser
 import pyperplan.grounding as grounding
 from pathlib import Path
 import time
+import random
+import pickle
+
+from pddlgym_planners.fd import FD
+
+from pddlgym.core import InvalidAction, PDDLEnv
+
+RAISE_ERROR_ON_VALID = False
+DYNAMIC_ACTION_SPACE = True
+
 
 
 #very silly implementation to get action names, replace this after a good parser is found.
@@ -56,6 +66,21 @@ def pred_to_string(predicate):
     st += ')'
     return st
 
+def remove_obs(instance, observability):
+    new_obs = []
+    n_observations = len(instance)
+
+    # Number of observations to remove
+    n_remove = int(n_observations*(1-observability))
+
+    # Randomly sample indices to remove from the states list
+    indices = sorted(random.sample(range(0, n_observations), n_remove))
+    
+    # Create new list with states except the indices to remove
+    for i in range(n_observations):
+        if i not in indices:
+            new_obs.append(instance[i])
+    return new_obs
 
 def complete_problem(problem_file, problem, task, goal, number, path):
     problem_file.seek(0)
@@ -134,8 +159,71 @@ def gr_to_gym(d, output='output', obs_per=100):
     complete_obs(observations, output +'/' + d + '/', 'obs.dat')
     complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')    
         
+def gr_to_gym_custom_obs(d, output='output'):
+    domain = open(d + "/domain.pddl", "r")
+    hypothesis = open(d+ "/hyps.dat")
+    correct_goal = open(d+ "/real_hyp.dat")
+    observations = open (d + "/obs.dat")
+    template = open(d + "/template.pddl")
 
+    #parse the domain file, generating a task (grounded actions)
+    problem = pyperplan._parse(d + "/domain.pddl", d + "/template.pddl")
+    task = grounding.ground_no_goal(problem)
+    
+    #Setup directories, still needs some fixing here.
+    Path(output +'/'+ d).mkdir(parents=True, exist_ok=True)
+    Path(output +'/'+ d + '/problems').mkdir(parents=True, exist_ok=True)
+
+    #Complete domain and multiple problems
+    goals = []
+    for line in hypothesis:
+        goals.append(line)
+    complete_domain(domain, output +'/' + d, None)
+    for count, goal in enumerate(goals):
+        complete_problem(template, problem, task, goal, count, output +'/' + d)
+    #Copy the observations and the correct goal to the desired location
+    complete_obs(observations, output +'/' + d + '/', 'obs.dat')
+    complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')
+
+def create_observabilities(d, output, ind=0):
+    print(output +'/'+ d + '/problems')
+    print(d + "/domain.pddl")
+    env = PDDLEnv(d + "/domain.pddl", d + '/problems',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+    planner = FD()
+    traj = []
+    env.fix_problem_index(ind)
+    init, _ = env.reset()
+    #print(f'GOAL {init.goal}')
+    
+    # traj is an action pair tuple, need to map this to state action number pair
+    plan = planner(env.domain, init)
+    traj = []
+    obs_list = [0.1,0.3,0.5,0.7,1.0]
+    traj_list = {}
+    for a in plan:
+        state_action_pair = (init.literals, a)
+        traj.append(state_action_pair)
+        init, _, _, _ = env.step(a)
+    for obs in obs_list:
+        traj_list[obs] = remove_obs(traj, obs)
+        save_obs(traj_list[obs], output +'/' +'obs' + str(obs)+'.dat')
+        with open(output +'/' +'obs' + str(obs)+'.pkl', "wb") as output_file:
+            pickle.dump(traj_list[obs], output_file)
+
+def save_obs(traj, out):
+    new_obs = open(out, "w")
+    for line in traj:
+        str_out = '' 
+        for pred in line[0]:
+            str_out += str(pred) + ' '
+        str_out += ';'
+        str_out += str(line[1])
+        new_obs.write(str_out)
+        new_obs.write('\n')
+    new_obs.close()
 
 if __name__ == "__main__":
-    gr_to_gym('dummy_gr', 'output', 100)
+    create_observabilities('output/blocks_gr', 'output/blocks_gr')
+    #gr_to_gym_new('dummy_gr', 'output', 100)
     #TODO create a complete main here

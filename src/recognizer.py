@@ -120,6 +120,35 @@ class Recognizer:
         return goal
     
     '''
+    Performs the goal recognition process, where observations are considered.
+    
+    Arguments:
+        env -- a PDDLGym env
+        policies -- a list of policies
+        actions -- possible actions of the environment (env.action_space.all_ground_literals(init, valid_only=False))
+        obs -- it is spected to be a list of state-action pairs
+        real_goal -- it is spected to be the index of the correct goal
+        n_goals -- the number of goals
+    
+    @return a goal
+    '''
+    def recognize_goal(self, env, policies, actions, obs, real_goal, n_goals=3):
+        traj = obs
+        divergences = []
+        list_of_goals = []
+
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+            divergence = self.evaluate_goal(obs, policies[n], actions)
+            divergences.append(divergence)
+        print(divergences)
+        div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
+        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
+        print('Correct goal is ', real_goal)
+        return goal
+    '''
     Train a policy for each one of the goals. 
     @return a list of policies and and the possible actions of the environment
     ''' 
@@ -151,7 +180,12 @@ class Recognizer:
         return policies, actions
 
          
-
+'''
+Reads the string representation of a PDDLGym literal and returns a PDDLGym literal
+Literal definition : https://github.com/tomsilver/pddlgym/blob/3f1df3bff0e50dea36570df926703fd46977d246/pddlgym/structs.py#L186
+'''
+def str_to_literal(string):
+    pass
 
 
 if __name__ == "__main__":
@@ -178,6 +212,7 @@ if __name__ == "__main__":
         env = PDDLEnv(args.d, args.p)
     recog = Recognizer()
     if args.t == 'complete':
+        #TODO Load observations and goal
         recog.complete_recognition(env)
     if args.t == 'learn':
         policies, actions = recog.train_policies(env)
