@@ -1,6 +1,6 @@
 import numpy as np
 
-from .replay import Replay
+from ml.memories.replay import Replay
 
 
 class InMemoryReplay(Replay):

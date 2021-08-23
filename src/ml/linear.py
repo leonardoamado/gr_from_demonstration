@@ -1,12 +1,13 @@
 from sklearn.linear_model import SGDRegressor
 
 from ml.common import GOAL_REWARD, INVALID_ACTION_REWARD
-from .rl import RLAgent
-from .common_functions import build_state, check_for_partial_goals, extract_objects, extract_offsets, build_state_linear
+from ml.rl import RLAgent
+from ml.common_functions import build_state, check_for_partial_goals, extract_objects, extract_offsets, build_state_linear
 import numpy as np
 from pddlgym.core import InvalidAction
 import random
 import time
+
 
 class LinearQLearning(RLAgent):
     def __init__(self, env, obs, problem=0, action_list=None, check_partial_goals=True):
@@ -14,7 +15,7 @@ class LinearQLearning(RLAgent):
         self.objects = extract_objects(obs)
         self.check_partial_goals = check_partial_goals
         self.state_size, self.offsets = extract_offsets(self.objects['block'], self.predicates)
-        #TODO: blocks will be hardcoded for now, change laters
+        # TODO: blocks will be hardcoded for now, change laters
         self.env = env
         self.discount = 0.99
         self.episodes = 10000

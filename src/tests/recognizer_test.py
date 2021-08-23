@@ -13,7 +13,9 @@ class RecognizerTest(unittest.TestCase):
         recog = Recognizer()
         policies, actions = recog.train_policies(env)
         # Basic sanity check
+        print(policies)
         self.assertIsNotNone(policies)
+        print(actions)
         self.assertIsNotNone(actions)
 
     def test_blocks(self):

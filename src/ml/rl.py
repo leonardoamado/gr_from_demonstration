@@ -49,6 +49,7 @@ from ml.common_functions import check_for_partial_goals
 #   patience: inf
 #   1, -1, -10
 
+
 class RLAgent:
     """
     This is a base class used as parent class for any
@@ -72,6 +73,7 @@ class RLAgent:
         self.decay = decay
         self.gamma = gamma
         self.action_list = action_list
+
 
 class TabularQLearner(RLAgent):
     """
