@@ -1,7 +1,8 @@
 from re import template
-import sys, os
-#sys.path.append(os.path.abspath(os.path.join('..')))
-#sys.path.append(os.path.abspath(os.path.join('.')))
+import sys
+import os
+# sys.path.append(os.path.abspath(os.path.join('..')))
+# sys.path.append(os.path.abspath(os.path.join('.')))
 import pyperplan.planner as pyperplan
 import pyperplan.pddl.parser as pyparser
 import pyperplan.grounding as grounding
@@ -18,8 +19,7 @@ RAISE_ERROR_ON_VALID = False
 DYNAMIC_ACTION_SPACE = True
 
 
-
-#very silly implementation to get action names, replace this after a good parser is found.
+# very silly implementation to get action names, replace this after a good parser is found.
 def parse_action(domain):
     domain.seek(0)
     action_list = []
@@ -57,9 +57,10 @@ def complete_domain(domain, path, parser):
             pred_counting = False
     new_domain.close()
 
-#Converts a pyperplan predicate to a PDDL string
+
+# Converts a pyperplan predicate to a PDDL string
 def pred_to_string(predicate):
-    st =  '(' + predicate.name
+    st = '(' + predicate.name
     for sig in predicate.signature:
         st += ' '
         st += sig[0]
