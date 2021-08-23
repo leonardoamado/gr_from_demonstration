@@ -9,6 +9,7 @@ cloudpickle==1.6.0
 cycler==0.10.0
 decorator
 defusedxml
+dill
 entrypoints==0.3
 future==0.18.2
 gym==0.18.0

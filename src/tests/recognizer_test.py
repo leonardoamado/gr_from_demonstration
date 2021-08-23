@@ -15,7 +15,7 @@ class RecognizerTest(unittest.TestCase):
         # Basic sanity check
         self.assertIsNotNone(policies)
         self.assertIsNotNone(actions)
-    
+
     def test_blocks(self):
         pass
 

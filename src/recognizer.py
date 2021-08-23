@@ -9,16 +9,14 @@ from matplotlib import pyplot as plt
 import ml.metrics as m
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join('.')))
-sys.path.append(os.path.abspath(os.path.join('..')))
 import dill
 import numpy as np
 import argparse
-from pddlgym_planners.fd import FD
-
-from pddlgym.core import InvalidAction, PDDLEnv
-#from pddlgym import PDDLEnv
+# sys.path.append(os.path.abspath(os.path.join('.')))
+sys.path.append(os.path.abspath(os.path.join('..')))
 import pddlgym
+from pddlgym.core import InvalidAction, PDDLEnv
+from pddlgym_planners.fd import FD
 import random
 
 
