@@ -13,6 +13,7 @@ import pickle
 from pddlgym_planners.fd import FD
 
 from pddlgym.core import InvalidAction, PDDLEnv
+from utils import solve_fset
 
 RAISE_ERROR_ON_VALID = False
 DYNAMIC_ACTION_SPACE = True
@@ -202,7 +203,7 @@ def create_observabilities(d, output, ind=0):
     obs_list = [0.1,0.3,0.5,0.7,1.0]
     traj_list = {}
     for a in plan:
-        state_action_pair = (init.literals, a)
+        state_action_pair = (solve_fset(init.literals), a)
         traj.append(state_action_pair)
         init, _, _, _ = env.step(a)
     for obs in obs_list:

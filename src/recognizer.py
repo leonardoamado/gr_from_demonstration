@@ -17,9 +17,10 @@ from pddlgym_planners.fd import FD
 
 from pddlgym.core import InvalidAction, PDDLEnv
 #from pddlgym import PDDLEnv
+from utils import solve_fset
 import pddlgym
 import random
-
+import pickle
 
 
 """
@@ -69,7 +70,7 @@ class Recognizer:
         else:
             self.train_policies = training
         if not recog:
-            self.recognize_process = self.recognize_goal_dummy
+            self.recognize_process = self.recognize_goal
         else:    
             self.recognize_process = recog
     
@@ -81,6 +82,40 @@ class Recognizer:
         policies, actions = self.train_policies(env, n_goals)
         goal = self.recognize_process(env, policies, actions, obs, real_goal)
         return goal
+    
+    def load_correct_goal(self, file):
+        correct_goal = 0
+        with open(file, 'rb') as goal:
+            correct_goal = int(goal.readline())
+        return correct_goal
+            
+    '''
+    Performs the entire process of goal recognition using the user a folder as parameter.
+    The recognizer starts with the default conditions
+    @return the predicted goal
+    '''
+    def complete_recognition_folder(self,folder, observations=[0.1,0.3,0.5,0.7,1.0]):
+        print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
+        env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        obs_traces = []
+        n_goals = len(env.problems)
+        real_goal = self.load_correct_goal(folder + 'real_hypn.dat')
+        for obs in observations:
+            with open(folder +'obs' + str(obs)+'.pkl', "rb") as input_file:
+                obs_traces.append(pickle.load(input_file))
+        
+        policies, actions = self.train_policies(env, n_goals)
+        with open(folder + 'policies.pkl', 'wb') as file:
+            dill.dump(policies, file)
+        with open(folder + 'actions.pkl', 'wb') as file:
+            dill.dump(actions, file)
+        result_list = []
+        for trace in obs_traces:
+            correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
+            result_list.append((correct, goal, rankings))
+        return result_list
+        
     
 
     '''
@@ -107,11 +142,11 @@ class Recognizer:
                 plan = planner(env.domain, init)
                 traj = []
                 for a in plan:
-                    state_action_pair = (init.literals, a)
+                    state_action_pair = (solve_fset(init.literals), a)
                     traj.append(state_action_pair)
                     init, _, _, _ = env.step(a)
                 #Forcefully remove observations, just for testing    
-                traj = remove_obs(traj, 0.5)
+                #traj = remove_obs(traj, 0.5)
             divergence = self.evaluate_goal(traj, policies[n], actions)
             divergences.append(divergence)
         print(divergences)
@@ -133,10 +168,12 @@ class Recognizer:
     @return a goal
     '''
     def recognize_goal(self, env, policies, actions, obs, real_goal, n_goals=3):
-        traj = obs
         divergences = []
         list_of_goals = []
-
+        for tup1 in obs:
+            for pred in tup1[0]:
+                pred._hash = hash(pred._str)
+            tup1[1]._hash = hash(tup1[1]._str)
         for n in range(n_goals):
             env.fix_problem_index(n)
             init, _ = env.reset()
@@ -144,10 +181,23 @@ class Recognizer:
             divergence = self.evaluate_goal(obs, policies[n], actions)
             divergences.append(divergence)
         print(divergences)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
-        print('Correct goal is ', real_goal)
-        return goal
+        print('Correct prediction:', goal==real_goal)
+        return goal==real_goal, goal, rankings
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+            divergence = self.evaluate_goal(obs, policies[n], actions)
+            divergences.append(divergence)
+        print(divergences)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
+        div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
+        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
+        print('Correct prediction:', goal==real_goal)
+        return goal==real_goal, goal, rankings
     '''
     Train a policy for each one of the goals. 
     @return a list of policies and and the possible actions of the environment
@@ -189,6 +239,7 @@ def str_to_literal(string):
 
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", help="PDDL domain file",
                     type=str, default='dummy')
@@ -228,5 +279,6 @@ if __name__ == "__main__":
                 actions = dill.load(file) 
         n_goals = 3 
         recog.recognize_goal_dummy(env,policies, actions, None, None)
-    
-    
+    if args.t == 'foldern':
+        recog = Recognizer()
+        recog.complete_recognition_folder('output/blocks_gr/')

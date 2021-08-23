@@ -7,6 +7,7 @@ from pddlgym.core import InvalidAction
 
 from ml.common import GOAL_REWARD
 from ml.common_functions import check_for_partial_goals
+from utils import solve_fset
 
 # This will be an implementation of Q-Learning with Gym
 
@@ -97,7 +98,6 @@ class TabularQLearner(RLAgent):
             self.action_list = list(env.action_space.all_ground_literals(init_obs, valid_only=False))
         else:
             self.action_list = action_list
-            print(action_list)
         self.actions = len(self.action_list)
         self.check_partial_goals = check_partial_goals
         self.goal_literals_achieved = set()
@@ -176,7 +176,7 @@ class TabularQLearner(RLAgent):
         for n in range(self.episodes):
             episode_r = 0
             state, info = self.env.reset()
-            state = state.literals
+            state = solve_fset(state.literals)
             done = False
             tstep = 0
             while tstep < tsteps and not done:
@@ -188,7 +188,7 @@ class TabularQLearner(RLAgent):
                     a = self.best_action(state)
                 try:
                     obs, r, done, _ = self.env.step(self.action_list[a])
-                    next_state = obs.literals
+                    next_state = solve_fset(obs.literals)
                     if done:
                         r = 100.
                     # this piece of code was a test that failed miserably.
@@ -233,4 +233,3 @@ class TabularQLearner(RLAgent):
                     patience = 0
                 done_times = 0
             self.goal_literals_achieved.clear()
-        print(len(self.q_table.keys()))
