@@ -8,10 +8,8 @@ import os
 
 from numpy.core.fromnumeric import mean
 
-
 def kl_divergence(p1, p2):
     return sum(p1[i] * log2(p1[i]/p2[i]) for i in range(len(p1)))
-
 
 def softmax(values):
     return [(exp(q))/sum([exp(_q) for _q in values]) for q in values]
@@ -52,7 +50,6 @@ def values_to_distribution(values):
     for state in values:
         policy[state] = softmax(values[state])
     return policy
-
 
 def kl_divergence_norm(traj, pol, actions, epsilon=0.):
     p = pol.q_table
@@ -116,7 +113,7 @@ def traj_to_policy(traj, actions, epsilon=0.):
         actions_len = len(actions)
         qs = [1e-6 + epsilon/actions_len for _ in range(actions_len)]
         qs[action_index] = 1. - 1e-6 * (actions_len-1) - epsilon
-        trajectory_as_policy[state] = qs
+        trajectory_as_policy[tuple(state)] = qs
     return trajectory_as_policy
 
 def values_to_policy(policy, epsilon=0.):
