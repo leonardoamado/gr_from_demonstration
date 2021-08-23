@@ -10,7 +10,7 @@ import pddlgym
 from env.env_wrapper import PDDLGymVecWrapper
 from stable_baselines3 import PPO, DQN, A2C
 import matplotlib
-matplotlib.use('TkAgg') # We need this for the environment to render in Mac
+matplotlib.use('TkAgg')  # We need this for the environment to render in Mac
 # matplotlib.use('nbAgg')
 # matplotlib.use('WebAgg')
 
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     # model = PPO("MlpPolicy", env, verbose=1)
     # model = DQN("MlpPolicy", env, verbose=1)
     # model = DQN("MlpPolicy", env, verbose=1, learning_rate=linear_schedule(0.2), learning_starts=0, exploration_initial_eps=1, exploration_final_eps=0.01)
-    model = A2C("MlpPolicy", env, verbose=1)
+    # model = A2C("MlpPolicy", env, verbose=1)
+    model = DQN("MlpPolicy", env, verbose=1, gamma=.99999)
     model.learn(total_timesteps=500000)
     print("Goal Reached: ", env.goal_counter)
 

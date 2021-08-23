@@ -1,6 +1,7 @@
 import numpy as np
 import pddlgym
-from .common import PARTIAL_GOAL_REWARD
+from ml.common import PARTIAL_GOAL_REWARD
+
 
 def extract_offsets(blocks, predicates):
     print('blocks order:', blocks)
@@ -17,6 +18,7 @@ def extract_offsets(blocks, predicates):
         i += num_lits
     state_size = i
     return state_size, offsets
+
 
 def build_state(obs, state_size, offsets, blocks):
         state = [0. for _ in range(state_size)]
@@ -78,6 +80,7 @@ def build_state_linear(obs, state_size, offsets, blocks, action_space, action=No
     # print(state)
     return np.array([state])
 
+
 def extract_objects(obs):
     objects = {}
     obs_objects = obs[1]
@@ -86,6 +89,7 @@ def extract_objects(obs):
             objects[object.var_type] = []
         objects[object.var_type].append(object.name)
     return objects
+
 
 def check_for_partial_goals(obs, goal_literals_achieved):
         literals = obs[0]
@@ -96,6 +100,7 @@ def check_for_partial_goals(obs, goal_literals_achieved):
                 r += PARTIAL_GOAL_REWARD
                 goal_literals_achieved.add(lit)
         return r
+
 
 def filter_valid_actions(obs):
     pddlgym

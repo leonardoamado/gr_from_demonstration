@@ -13,9 +13,10 @@ from functools import reduce
 from matplotlib import pyplot as plt
 import math
 
-from .base import BaseMethod
-from .memories.inmemory_replay import InMemoryReplay
-from . import common
+from ml.base import BaseMethod
+from ml.memories.inmemory_replay import InMemoryReplay
+import ml.common
+
 
 class MLP(torch.nn.Module):
     def __init__(self, state_size, num_actions, start_eps=0.9, end_eps=0.1, dueling=True, dueling_type='mean'):

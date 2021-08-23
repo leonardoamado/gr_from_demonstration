@@ -7,9 +7,8 @@ import time
 # from ..env_manager import EnvManager
 from matplotlib import pyplot as plt
 import ml.metrics as m
-import sys, os
-sys.path.append(os.path.abspath(os.path.join('.')))
-sys.path.append(os.path.abspath(os.path.join('..')))
+import sys
+import os
 import dill
 import numpy as np
 import argparse
@@ -18,7 +17,11 @@ from pddlgym_planners.fd import FD
 from pddlgym.core import InvalidAction, PDDLEnv
 #from pddlgym import PDDLEnv
 from utils import solve_fset
+# sys.path.append(os.path.abspath(os.path.join('.')))
+sys.path.append(os.path.abspath(os.path.join('..')))
 import pddlgym
+from pddlgym.core import InvalidAction, PDDLEnv
+from pddlgym_planners.fd import FD
 import random
 import pickle
 
@@ -39,12 +42,11 @@ DYNAMIC_ACTION_SPACE = True
 # when listing possible actions.
 
 
-
 #############################
 
 
 # current_method = DQN
-#This function will be moved to another file, leave this here for now
+# This function will be moved to another file, leave this here for now
 def remove_obs(instance, observability):
     new_obs = []
     n_observations = len(instance)
@@ -54,17 +56,18 @@ def remove_obs(instance, observability):
 
     # Randomly sample indices to remove from the states list
     indices = sorted(random.sample(range(0, n_observations), n_remove))
-    
+
     # Create new list with states except the indices to remove
     for i in range(n_observations):
         if i not in indices:
             new_obs.append(instance[i])
     return new_obs
 
+
 class Recognizer:
-    def __init__(self, method=TabularQLearner, evaluatation=m.kl_divergence_norm_softmax,training=None, recog=None):
+    def __init__(self, method=TabularQLearner, evaluation=m.kl_divergence_norm_softmax, training=None, recog=None):
         self.method = method
-        self.evaluate_goal = evaluatation
+        self.evaluate_goal = evaluation
         if not training:
             self.train_policies = self.train
         else:
@@ -73,7 +76,7 @@ class Recognizer:
             self.recognize_process = self.recognize_goal
         else:    
             self.recognize_process = recog
-    
+
     '''
     Performs the entire process of goal recognition using the user assigned functions.
     @return the predicted goal
@@ -135,7 +138,7 @@ class Recognizer:
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-            
+
             # traj is an action pair tuple, need to map this to state action number pair
             if len(traj) == 0:
                 print(f"Dummy recog, PLANNING FOR GOAL {init.goal}")
@@ -153,10 +156,10 @@ class Recognizer:
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
         return goal
-    
+
     '''
     Performs the goal recognition process, where observations are considered.
-    
+
     Arguments:
         env -- a PDDLGym env
         policies -- a list of policies
@@ -164,7 +167,7 @@ class Recognizer:
         obs -- it is spected to be a list of state-action pairs
         real_goal -- it is spected to be the index of the correct goal
         n_goals -- the number of goals
-    
+
     @return a goal
     '''
     def recognize_goal(self, env, policies, actions, obs, real_goal, n_goals=3):
@@ -201,7 +204,7 @@ class Recognizer:
     '''
     Train a policy for each one of the goals. 
     @return a list of policies and and the possible actions of the environment
-    ''' 
+    '''
     def train(self, env, n_goals=3):
         policies = []
         actions = None
@@ -229,12 +232,12 @@ class Recognizer:
                     policy = policies[-1]
         return policies, actions
 
-         
-'''
-Reads the string representation of a PDDLGym literal and returns a PDDLGym literal
-Literal definition : https://github.com/tomsilver/pddlgym/blob/3f1df3bff0e50dea36570df926703fd46977d246/pddlgym/structs.py#L186
-'''
+
 def str_to_literal(string):
+    '''
+    Reads the string representation of a PDDLGym literal and returns a PDDLGym literal
+    Literal definition : https://github.com/tomsilver/pddlgym/blob/3f1df3bff0e50dea36570df926703fd46977d246/pddlgym/structs.py#L186
+    '''
     pass
 
 
@@ -254,16 +257,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print(args.d)
     if args.d == 'dummy':
-       # env = pddlgym.make("PDDLEnvBlocks_gr-v0",
-       #                     raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-       #                     dynamic_action_space=DYNAMIC_ACTION_SPACE)
-        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        # env = pddlgym.make("PDDLEnvBlocks_gr-v0",
+        #                     raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+        #                     dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID, dynamic_action_space=DYNAMIC_ACTION_SPACE)
     else:
         env = PDDLEnv(args.d, args.p)
     recog = Recognizer()
     if args.t == 'complete':
-        #TODO Load observations and goal
+        # TODO Load observations and goal
         recog.complete_recognition(env)
     if args.t == 'learn':
         policies, actions = recog.train_policies(env)

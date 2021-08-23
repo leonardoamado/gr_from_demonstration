@@ -1,7 +1,9 @@
 import os
 
 
-ROOT_DIR = os.environ['RLROOT']
+# ROOT_DIR = os.environ['RLROOT']
+# Trying to make sure that this works even without the environment
+ROOT_DIR = os.environ.get('RLROOT', os.path.abspath(os.path.realpath(__file__)+"../.."))
 
 DEFAULT_PARAMS = {
     'episodes': 1000000,

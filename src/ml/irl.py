@@ -3,6 +3,7 @@ from torch.nn import functional as F
 from functools import reduce
 import operator
 
+
 class FeatureExtractor(torch.nn.Module):
     # in_shape = 64x64x1
     def __init__(self, im_shape):
@@ -30,6 +31,7 @@ t = FeatureExtractor((64,64))
 z = torch.rand((1,1,64,64))
 print(t(z).shape)
 # print(t.parameter_count())
+
 
 class PolicyHead(torch.nn.Module):
     """

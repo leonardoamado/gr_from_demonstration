@@ -49,8 +49,8 @@ Research:
 - policy gradient methods
 - Imitation learning (or Inverse Reinforcement Learning)
   - Behavioral cloning
-  - 
 
 Code and functionality:
 
 - Serialization (State and actions to their string representation, map them back with a dictionary)
+- Document the need for the ```.env``` file to run this, specifically, we have [debug.env](debug.env) here.
