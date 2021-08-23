@@ -99,7 +99,7 @@ class Recognizer:
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-            
+
             # traj is an action pair tuple, need to map this to state action number pair
             if len(traj) == 0:
                 print(f"Dummy recog, PLANNING FOR GOAL {init.goal}")

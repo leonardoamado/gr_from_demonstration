@@ -17,7 +17,8 @@ class RecognizerTest(unittest.TestCase):
         self.assertIsNotNone(actions)
 
     def test_blocks(self):
-        pass
+        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        recog = Recognizer()
 
 
 if __name__ == "__main__":
