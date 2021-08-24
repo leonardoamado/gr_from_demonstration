@@ -1,9 +1,13 @@
+from abc import abstractmethod
 import pickle
+from typing import Any, Collection
+from gym.core import Env
 import numpy as np
 import random
 import datetime
 
 from pddlgym.core import InvalidAction
+from pddlgym.structs import Literal
 
 from ml.common import GOAL_REWARD
 from ml.common_functions import check_for_partial_goals
@@ -58,14 +62,14 @@ class RLAgent:
     recommended as development goes on.
     """
     def __init__(self,
-                 problem=0,
-                 episodes=100,
-                 decaying_eps=True,
-                 eps=0.9,
-                 alpha=0.01,
-                 decay=0.00005,
-                 gamma=0.99,
-                 action_list=None):
+                 problem: int = 0,
+                 episodes: int = 100,
+                 decaying_eps: bool = True,
+                 eps: float = 0.9,
+                 alpha: float = 0.01,
+                 decay: float = 0.00005,
+                 gamma: float = 0.99,
+                 action_list: Collection = None):
         self.problem = problem
         self.episodes = episodes
         self.decaying_eps = decaying_eps
@@ -75,24 +79,37 @@ class RLAgent:
         self.gamma = gamma
         self.action_list = action_list
 
+    @abstractmethod
+    def agent_step(self, reward: float, state: Any) -> Any:
+        """A step taken by the agent.
+        Args:
+            reward (float): the reward received for taking the last action taken
+            state (Any): the state observation from the
+                environment's step based, where the agent ended up after the
+                last step
+        Returns:
+            The action the agent is taking.
+        """
+        pass
+
 
 class TabularQLearner(RLAgent):
     """
     A simple Tabular Q-Learning agent.
     """
     def __init__(self,
-                 env,
-                 init_obs,
-                 problem=None,
-                 episodes=30000,
-                 decaying_eps=True,
-                 eps=1.0,
-                 alpha=0.5,
-                 decay=0.000002,
-                 gamma=0.9,
-                 action_list=None,
-                 check_partial_goals=True,
-                 valid_only=False,
+                 env: Env,
+                 init_obs: Any,
+                 problem: int = None,
+                 episodes: int = 30000,
+                 decaying_eps: bool = True,
+                 eps: float = 1.0,
+                 alpha: float = 0.5,
+                 decay: float = 0.000002,
+                 gamma: float = 0.9,
+                 action_list: Collection[Literal] = None,
+                 check_partial_goals: bool = True,
+                 valid_only: bool = False,
                  **kwargs):
         self.valid_only = valid_only
         self.env = env
@@ -128,6 +145,10 @@ class TabularQLearner(RLAgent):
         self.problem = problem
         if problem:
             self.env.fix_problem_index(problem)
+
+    def agent_step(self, reward: float, state: Any) -> Any:
+        # TODO We should definitely implement this better
+        return self.best_action(state)
 
     def save_q_table(self, path):
         # sadly, this does not work, because the state we are using
@@ -174,7 +195,7 @@ class TabularQLearner(RLAgent):
         patience = 0
         max_r = float("-inf")
         init, _ = self.env.reset()
-        print('LEARNING FOR GOAL:', init.goal )
+        print('LEARNING FOR GOAL:', init.goal)
         for n in range(self.episodes):
             episode_r = 0
             state, info = self.env.reset()
@@ -208,7 +229,6 @@ class TabularQLearner(RLAgent):
                 if done:
                     done_times += 1
 
-
                 # standard q-learning algorithm
                 
                 next_max_q = self.get_max_q(next_state)
@@ -233,5 +253,8 @@ class TabularQLearner(RLAgent):
                         raise InvalidAction("Did not learn")
                 else:
                     patience = 0
+                if done_times == 1000:
+                    print("***Policy converged to goal***")
                 done_times = 0
             self.goal_literals_achieved.clear()
+

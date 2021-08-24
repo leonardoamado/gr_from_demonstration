@@ -125,6 +125,7 @@ class MLP(torch.nn.Module):
     def parameter_count(self):
         return sum(map(lambda x: reduce(operator.mul, x.shape, 1), self.parameters()))
 
+
 class DQN(BaseMethod):
 
     def __init__(self, env, state, problem=0, params=None, action_list=None, check_partial_goals=True):
@@ -247,7 +248,6 @@ class DQN(BaseMethod):
             timestep = 0
             while timestep < self.max_timesteps and not done:
 
-
                 state = self.build_state(obs)
                 # self.curr_state.
                 _a = self.net.next_action(state, training_steps)
@@ -321,7 +321,6 @@ class DQN(BaseMethod):
             self.goal_literals_achieved.clear()
         self.clear_memories()
 
-    
     def check_for_partial_goals(self, obs):
         literals = obs[0]
         goals = obs[2].literals

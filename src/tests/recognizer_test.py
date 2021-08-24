@@ -1,7 +1,16 @@
+from typing import Collection
+from pddlgym.structs import Literal
 from recognizer import Recognizer
 from pddlgym.core import PDDLEnv
 
 import unittest
+
+
+def find_action(action_name: str, actions: Collection[Literal]) -> Literal:
+    for action in actions:
+        if action.__repr__() == action_name:
+            return action
+    return None
 
 
 class RecognizerTest(unittest.TestCase):
@@ -9,14 +18,24 @@ class RecognizerTest(unittest.TestCase):
         print("Unit tests for the recognizer")
 
     def test_policy_learning(self):
-        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
         recog = Recognizer()
         policies, actions = recog.train_policies(env)
         # Basic sanity check
-        print(policies)
         self.assertIsNotNone(policies)
-        print(actions)
         self.assertIsNotNone(actions)
+        self.assertEquals(len(actions), 35)
+        # TODO Check that all of the problems here really do start with "stack(e,c)"
+        action = actions[policies[0].agent_step(0.0, env.problems[0].initial_state)]
+        print(f'Action 0={policies[0].agent_step(0.0, env.problems[0].initial_state)}:{action}')
+        # self.assertEqual(find_action("unstack(d:block)", actions), action)
+        action = actions[policies[1].agent_step(0.0, env.problems[1].initial_state)]
+        print(f'Action 1={policies[1].agent_step(0.0, env.problems[1].initial_state)}:{action}')
+        # self.assertEqual(find_action("stack(e:block,c:block)", actions), action)
+        action = actions[policies[2].agent_step(0.0, env.problems[2].initial_state)]
+        print(f'Action 2={policies[2].agent_step(0.0, env.problems[2].initial_state)}:{action}')
+        # self.assertEqual(find_action("stack(e:block,c:block)", actions), action)
+        print(actions)
 
     def test_blocks(self):
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)

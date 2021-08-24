@@ -1,6 +1,8 @@
+from typing import Any, Collection, List, Tuple
+from gym.core import Env
 from numpy import deg2rad
 from ml.linear import LinearQLearning
-from ml.rl import TabularQLearner
+from ml.rl import RLAgent, TabularQLearner
 from ml.dqn import DQN
 import json
 import time
@@ -12,18 +14,16 @@ import os
 import dill
 import numpy as np
 import argparse
-from pddlgym_planners.fd import FD
-
 from pddlgym.core import InvalidAction, PDDLEnv
-#from pddlgym import PDDLEnv
 from utils import solve_fset
-# sys.path.append(os.path.abspath(os.path.join('.')))
-sys.path.append(os.path.abspath(os.path.join('..')))
 import pddlgym
 from pddlgym.core import InvalidAction, PDDLEnv
-from pddlgym_planners.fd import FD
+from pddlgym.structs import Literal
 import random
 import pickle
+# sys.path.append(os.path.abspath(os.path.join('.')))
+sys.path.append(os.path.abspath(os.path.join('..')))
+from pddlgym_planners.fd import FD
 
 
 """
@@ -97,7 +97,7 @@ class Recognizer:
     The recognizer starts with the default conditions
     @return the predicted goal
     '''
-    def complete_recognition_folder(self,folder, observations=[0.1,0.3,0.5,0.7,1.0]):
+    def complete_recognition_folder(self, folder, observations=[0.1,0.3,0.5,0.7,1.0]):
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
         env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                             dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -121,14 +121,14 @@ class Recognizer:
         
     
 
-    '''
+    ''' TODO FRM: Justify this or remove altogether
     Performs a dummy goal recognition process, where observations are not considered.
     
     The first goal is considered the correct one and a plan is computed for the goal
     which serves as a full observation trace.
     @return a goal
     '''
-    def recognize_goal_dummy(self, env, policies, actions, obs, real_goal, n_goals=3):
+    def recognize_goal_dummy(self, env: Env, policies, actions: RLAgent, obs: List, real_goal: int, n_goals: int = 3) -> int:
         planner = FD()
         traj = []
         divergences = []
@@ -162,15 +162,15 @@ class Recognizer:
 
     Arguments:
         env -- a PDDLGym env
-        policies -- a list of policies
+        policies -- a list of policies (actually RLAgents)
         actions -- possible actions of the environment (env.action_space.all_ground_literals(init, valid_only=False))
-        obs -- it is spected to be a list of state-action pairs
+        obs -- it is expected to be a list of state-action pairs
         real_goal -- it is spected to be the index of the correct goal
         n_goals -- the number of goals
 
     @return a goal
     '''
-    def recognize_goal(self, env, policies, actions, obs, real_goal, n_goals=3):
+    def recognize_goal(self, env: Env, policies, actions: RLAgent, obs: List, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         divergences = []
         list_of_goals = []
         for tup1 in obs:
@@ -205,7 +205,7 @@ class Recognizer:
     Train a policy for each one of the goals. 
     @return a list of policies and and the possible actions of the environment
     '''
-    def train(self, env, n_goals=3):
+    def train(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
         policies = []
         actions = None
         starting_problem_index = 0
