@@ -148,9 +148,9 @@ class TabularQLearner(RLAgent):
 
     def agent_step(self, reward: float, state: Any) -> Any:
         # TODO We should definitely implement this better
-        return self.best_action(state)
+        return self.best_action(solve_fset(state))
 
-    def save_q_table(self, path):
+    def save_q_table(self, path: str):
         # sadly, this does not work, because the state we are using
         # is a frozenset of literals, which are not serializable.
         # a way to fix this is to use array states built using
@@ -159,7 +159,7 @@ class TabularQLearner(RLAgent):
         with open(path, 'w') as f:
             pickle.dump(self.q_table, f)
 
-    def load_q_table(self, path):
+    def load_q_table(self, path: str):
         with open(path, 'r') as f:
             table = pickle.load(path)
             self.q_table = table
@@ -193,6 +193,7 @@ class TabularQLearner(RLAgent):
         tsteps = 50
         done_times = 0
         patience = 0
+        converged_at = None
         max_r = float("-inf")
         init, _ = self.env.reset()
         print('LEARNING FOR GOAL:', init.goal)
@@ -205,15 +206,15 @@ class TabularQLearner(RLAgent):
             while tstep < tsteps and not done:
                 eps = self.eps()
                 if random.random() <= eps:
-                    a = random.randint(0, self.actions-1)
+                    action = random.randint(0, self.actions-1)
                     # a = self.env.action_space.sample(state)
                 else:
-                    a = self.best_action(state)
+                    action = self.best_action(state)
                 try:
-                    obs, r, done, _ = self.env.step(self.action_list[a])
+                    obs, reward, done, _ = self.env.step(self.action_list[action])
                     next_state = solve_fset(obs.literals)
                     if done:
-                        r = 100.
+                        reward = 100.
                     # this piece of code was a test that failed miserably.
                     # whenever the agent reaches a state that contains a fact
                     # of the goal, give a positive reward.
@@ -223,24 +224,32 @@ class TabularQLearner(RLAgent):
                     #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
                 except InvalidAction:
                     next_state = state
-                    r = -1.
+                    reward = -1.
                     done = False
 
                 if done:
                     done_times += 1
 
                 # standard q-learning algorithm
-                
+
                 next_max_q = self.get_max_q(next_state)
-                old_q = self.get_q_value(state, a)
+                old_q = self.get_q_value(state, action)
 
-                new_q = old_q + self.alpha * \
-                    (r + (self.gamma * next_max_q) - old_q)
+                td_error = self.gamma*next_max_q - old_q
+                new_q = old_q + self.alpha * (reward + td_error)
 
-                self.set_q_value(state, a, new_q)
+                self.set_q_value(state, action, new_q)
                 state = next_state
                 tstep += 1
-                episode_r += r
+                episode_r += reward
+            if done:  # One last update at the terminal state
+                old_q = self.get_q_value(state, action)
+
+                td_error = - old_q
+
+                new_q = old_q + self.alpha * (reward + td_error)
+                self.set_q_value(state, action, new_q)
+
             if episode_r > max_r:
                 max_r = episode_r
                 print("New all time high reward:", episode_r)
@@ -253,8 +262,132 @@ class TabularQLearner(RLAgent):
                         raise InvalidAction("Did not learn")
                 else:
                     patience = 0
-                if done_times == 1000:
-                    print("***Policy converged to goal***")
+                if done_times == 1000 and converged_at is not None:
+                    converged_at = n
+                    print(f"***Policy converged to goal at {converged_at}***")
                 done_times = 0
             self.goal_literals_achieved.clear()
 
+
+class TabularDynaQLearner(TabularQLearner):
+    def __init__(self,
+                 env: Env,
+                 init_obs: Any,
+                 problem: int = None,
+                 episodes: int = 30000,
+                 decaying_eps: bool = True,
+                 eps: float = 1.0,
+                 alpha: float = 0.5,
+                 decay: float = 0.000002,
+                 gamma: float = 0.9,
+                 action_list: Collection[Literal] = None,
+                 check_partial_goals: bool = True,
+                 valid_only: bool = False,
+                 planning_steps: int = 10,
+                 **kwargs):
+        self.planning_steps = planning_steps
+        self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to 
+                         # (reward, next_state) tuples
+
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
+
+    def update_model(self, past_state, past_action, state, reward):
+        if past_state not in self.model:
+            self.model[past_state] = {}
+        self.model[past_state][past_action] = (state, reward)
+
+    def planning_step(self):
+        for i in range(self.planning_steps):
+            past_state = random.choice(list(self.model.keys()))
+            past_action = random.choice(list(self.model[past_state].keys()))
+            state, reward = self.model[past_state][past_action]
+            if state is None:
+                td_error = self.get_q_value(past_state, past_action)
+            else:
+                td_error = self.get_max_q(state) - self.get_q_value(past_state, past_action)
+            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + self.gamma*td_error)
+            self.set_q_value(past_state, past_action, new_q)
+
+    def learn(self):
+        log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
+        tsteps = 50
+        done_times = 0
+        patience = 0
+        converged_at = None
+        max_r = float("-inf")
+        init, _ = self.env.reset()
+        print('LEARNING FOR GOAL:', init.goal)
+        for n in range(self.episodes):
+            episode_r = 0
+            state, info = self.env.reset()
+            state = solve_fset(state.literals)
+            done = False
+            tstep = 0
+            while tstep < tsteps and not done:
+                eps = self.eps()
+                if random.random() <= eps:
+                    action = random.randint(0, self.actions-1)
+                    # a = self.env.action_space.sample(state)
+                else:
+                    action = self.best_action(state)
+                try:
+                    obs, reward, done, _ = self.env.step(self.action_list[action])
+                    next_state = solve_fset(obs.literals)
+                    if done:
+                        reward = 100.
+                    # this piece of code was a test that failed miserably.
+                    # whenever the agent reaches a state that contains a fact
+                    # of the goal, give a positive reward.
+                    #
+                    # else:
+                    #     if self.check_partial_goals:
+                    #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
+                except InvalidAction:
+                    next_state = state
+                    reward = -1.
+                    done = False
+
+                if done:
+                    done_times += 1
+
+                # Dyna q-learning algorithm
+
+                next_max_q = self.get_max_q(next_state)
+                old_q = self.get_q_value(state, action)
+
+                td_error = self.gamma*next_max_q - old_q
+                new_q = old_q + self.alpha * (reward + td_error)
+
+                self.set_q_value(state, action, new_q)
+
+                self.update_model(state, action, next_state, reward)
+                self.planning_step()
+
+                state = next_state
+                tstep += 1
+                episode_r += reward
+            if done:  # One last update at the terminal state
+                old_q = self.get_q_value(state, action)
+
+                td_error = - old_q
+
+                new_q = old_q + self.alpha * (reward + td_error)
+                self.set_q_value(state, action, new_q)
+                self.update_model(state, action, None, reward)
+            if episode_r > max_r:
+                max_r = episode_r
+                print("New all time high reward:", episode_r)
+            if (n + 1) % 1000 == 0:
+                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {eps}')
+                if done_times <= 10:
+                    patience += 1
+                    if patience >= self.patience:
+                        print(f"Did not find goal after {n} episodes. Retrying.")
+                        raise InvalidAction("Did not learn")
+                else:
+                    patience = 0
+                if done_times == 1000 and converged_at is not None:
+                    converged_at = n
+                    print(f"***Policy converged to goal at {converged_at}***")
+                done_times = 0
+            self.goal_literals_achieved.clear()
