@@ -15,6 +15,14 @@ def find_action(action_name: str, actions: Collection[Literal]) -> Literal:
     return None
 
 
+def find_actions(action_names: Collection[str], actions: Collection[Literal]) -> Collection[Literal]:
+    literals = []
+    for action in actions:
+        if action.__repr__() in action_names:
+            literals.append(action)
+    return literals
+
+
 class RecognizerTest(unittest.TestCase):
     def setUp(self):
         print("Unit tests for the recognizer")
@@ -29,18 +37,24 @@ class RecognizerTest(unittest.TestCase):
         self.assertIsNotNone(actions)
         self.assertEquals(len(actions), 35)
         # TODO Check that all of the problems here really do start with "stack(e,c)"
+        print(f'Initial State for 0 = {env.problems[0].initial_state}')
+        print(f'Goal State for 0 = {env.problems[0].goal}')
         action = actions[policies[0].agent_step(0.0, env.problems[0].initial_state)]
         print(f'Action 0={policies[0].agent_step(0.0, env.problems[0].initial_state)}:{action}')
-        self.assertEqual(find_action("unstack(d:block)", actions), action)
+        self.assertIn(action, find_actions(["unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
+        print(f'Initial State for 1 = {env.problems[1].initial_state}')
+        print(f'Goal State for 1 = {env.problems[1].goal}')
         action = actions[policies[1].agent_step(0.0, env.problems[1].initial_state)]
         print(f'Action 1={policies[1].agent_step(0.0, env.problems[1].initial_state)}:{action}')
-        self.assertEqual(find_action("unstack(d:block)", actions), action)
+        self.assertIn(action, find_actions(["unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
+        print(f'Initial State for 2 = {env.problems[2].initial_state}')
+        print(f'Goal State for 2 = {env.problems[2].goal}')
         action = actions[policies[2].agent_step(0.0, env.problems[2].initial_state)]
         print(f'Action 2={policies[2].agent_step(0.0, env.problems[2].initial_state)}:{action}')
-        self.assertEqual(find_action("pickup(a:block)", actions), action)
+        self.assertIn(action, find_actions(["pickup(a:block)"], actions))
         print(actions)
 
-    @skip  # This does not seem to do much better than TabularQLearning
+    # @skip  # This does not seem to do much better than TabularQLearning
     def test_dynaq_policy_learning(self):
         print("****  Testing Learning using TabularDynaQLearning  ****")
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
@@ -53,13 +67,13 @@ class RecognizerTest(unittest.TestCase):
         # TODO Check that all of the problems here really do start with "stack(e,c)"
         action = actions[policies[0].agent_step(0.0, env.problems[0].initial_state)]
         print(f'Action 0={policies[0].agent_step(0.0, env.problems[0].initial_state)}:{action}')
-        # self.assertEqual(find_action("unstack(d:block)", actions), action)
+        self.assertIn(action, find_actions(["unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
         action = actions[policies[1].agent_step(0.0, env.problems[1].initial_state)]
         print(f'Action 1={policies[1].agent_step(0.0, env.problems[1].initial_state)}:{action}')
-        # self.assertEqual(find_action("stack(e:block,c:block)", actions), action)
+        self.assertIn(action, find_actions(["unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
         action = actions[policies[2].agent_step(0.0, env.problems[2].initial_state)]
         print(f'Action 2={policies[2].agent_step(0.0, env.problems[2].initial_state)}:{action}')
-        # self.assertEqual(find_action("stack(e:block,c:block)", actions), action)
+        self.assertIn(action, find_actions(["pickup(a:block)"], actions))
         print(actions)
 
     def test_blocks(self):

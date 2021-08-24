@@ -302,10 +302,10 @@ class TabularDynaQLearner(TabularQLearner):
             past_action = random.choice(list(self.model[past_state].keys()))
             state, reward = self.model[past_state][past_action]
             if state is None:
-                td_error = self.get_q_value(past_state, past_action)
+                td_error = - self.get_q_value(past_state, past_action)
             else:
-                td_error = self.get_max_q(state) - self.get_q_value(past_state, past_action)
-            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + self.gamma*td_error)
+                td_error = self.gamma*self.get_max_q(state) - self.get_q_value(past_state, past_action)
+            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
             self.set_q_value(past_state, past_action, new_q)
 
     def learn(self):
