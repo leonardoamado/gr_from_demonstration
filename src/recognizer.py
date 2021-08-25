@@ -85,13 +85,13 @@ class Recognizer:
         policies, actions = self.train_policies(env, n_goals)
         goal = self.recognize_process(env, policies, actions, obs, real_goal)
         return goal
-    
+
     def load_correct_goal(self, file):
         correct_goal = 0
         with open(file, 'rb') as goal:
             correct_goal = int(goal.readline())
         return correct_goal
-            
+
     '''
     Performs the entire process of goal recognition using the user a folder as parameter.
     The recognizer starts with the default conditions
@@ -107,7 +107,7 @@ class Recognizer:
         for obs in observations:
             with open(folder +'obs' + str(obs)+'.pkl', "rb") as input_file:
                 obs_traces.append(pickle.load(input_file))
-        
+
         policies, actions = self.train_policies(env, n_goals)
         with open(folder + 'policies.pkl', 'wb') as file:
             dill.dump(policies, file)
@@ -118,12 +118,12 @@ class Recognizer:
             correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
             result_list.append((correct, goal, rankings))
         return result_list
-        
-    
+
+
 
     ''' TODO FRM: Justify this or remove altogether
     Performs a dummy goal recognition process, where observations are not considered.
-    
+
     The first goal is considered the correct one and a plan is computed for the goal
     which serves as a full observation trace.
     @return a goal
@@ -201,11 +201,12 @@ class Recognizer:
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
         print('Correct prediction:', goal==real_goal)
         return goal==real_goal, goal, rankings
-    '''
-    Train a policy for each one of the goals. 
-    @return a list of policies and and the possible actions of the environment
-    '''
+
     def train(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
+        '''
+        Train a policy for each one of the goals. 
+        @return a list of policies and and the possible actions of the environment
+        '''
         policies = []
         actions = None
         starting_problem_index = 0
@@ -242,7 +243,7 @@ def str_to_literal(string):
 
 
 if __name__ == "__main__":
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", help="PDDL domain file",
                     type=str, default='dummy')

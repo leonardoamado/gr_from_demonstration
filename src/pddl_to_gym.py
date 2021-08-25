@@ -30,7 +30,7 @@ def parse_action(domain):
     return action_list
 
 
-#Adds to a PDDL domain the necessary line to run on PDDLGym
+# Adds to a PDDL domain the necessary line to run on PDDLGym
 def complete_domain(domain, path, parser):
     action_list = parse_action(domain)
     domain.seek(0)
@@ -68,6 +68,7 @@ def pred_to_string(predicate):
     st += ')'
     return st
 
+
 def remove_obs(instance, observability):
     new_obs = []
     n_observations = len(instance)
@@ -83,6 +84,7 @@ def remove_obs(instance, observability):
         if i not in indices:
             new_obs.append(instance[i])
     return new_obs
+
 
 def complete_problem(problem_file, problem, task, goal, number, path):
     problem_file.seek(0)
@@ -115,6 +117,7 @@ def complete_problem(problem_file, problem, task, goal, number, path):
                 new_problem.write(t.name)
                 new_problem.write('\n\t')
     new_problem.close()
+
 
 def complete_obs(observations, path, name):
     new_obs = open(path + name, "w")
@@ -160,7 +163,8 @@ def gr_to_gym(d, output='output', obs_per=100):
     #Copy the observations and the correct goal to the desired location
     complete_obs(observations, output +'/' + d + '/', 'obs.dat')
     complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')    
-        
+
+
 def gr_to_gym_custom_obs(d, output='output'):
     domain = open(d + "/domain.pddl", "r")
     hypothesis = open(d+ "/hyps.dat")
@@ -186,6 +190,7 @@ def gr_to_gym_custom_obs(d, output='output'):
     #Copy the observations and the correct goal to the desired location
     complete_obs(observations, output +'/' + d + '/', 'obs.dat')
     complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')
+
 
 def create_observabilities(d, output, ind=0):
     print(output +'/'+ d + '/problems')
@@ -213,6 +218,7 @@ def create_observabilities(d, output, ind=0):
         with open(output +'/' +'obs' + str(obs)+'.pkl', "wb") as output_file:
             pickle.dump(traj_list[obs], output_file)
 
+
 def save_obs(traj, out):
     new_obs = open(out, "w")
     for line in traj:
@@ -224,6 +230,7 @@ def save_obs(traj, out):
         new_obs.write(str_out)
         new_obs.write('\n')
     new_obs.close()
+
 
 if __name__ == "__main__":
     create_observabilities('output/blocks_gr', 'output/blocks_gr')
