@@ -12,6 +12,8 @@ from pddlgym.structs import Literal
 from ml.common import GOAL_REWARD
 from ml.common_functions import check_for_partial_goals
 from utils import solve_fset
+from pddlgym_planners.fd import FD
+
 
 # This will be an implementation of Q-Learning with Gym
 
@@ -101,7 +103,7 @@ class TabularQLearner(RLAgent):
                  env: Env,
                  init_obs: Any,
                  problem: int = None,
-                 episodes: int = 30000,
+                 episodes: int = 10000,
                  decaying_eps: bool = True,
                  eps: float = 1.0,
                  alpha: float = 0.5,
@@ -188,14 +190,17 @@ class TabularQLearner(RLAgent):
             self.add_new_state(state)
         return self.q_table[state][a]
 
-    def learn(self):
+    def learn(self, forced_init = True, init_threshold = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
         done_times = 0
         patience = 0
         converged_at = None
         max_r = float("-inf")
+        init, _ = self.env.reset()      
+        planner = FD()
         init, _ = self.env.reset()
+        plan = planner(self.env.domain, init)
         print('LEARNING FOR GOAL:', init.goal)
         for n in range(self.episodes):
             episode_r = 0
@@ -205,11 +210,15 @@ class TabularQLearner(RLAgent):
             tstep = 0
             while tstep < tsteps and not done:
                 eps = self.eps()
-                if random.random() <= eps:
-                    action = random.randint(0, self.actions-1)
-                    # a = self.env.action_space.sample(state)
+                if forced_init and n < init_threshold:
+                    action = self.action_list.index(plan[tstep])
+                    #print('Forced step:', action, tstep)
                 else:
-                    action = self.best_action(state)
+                    if random.random() <= eps:
+                        action = random.randint(0, self.actions-1)
+                        # a = self.env.action_space.sample(state)
+                    else:
+                        action = self.best_action(state)
                 try:
                     obs, reward, done, _ = self.env.step(self.action_list[action])
                     next_state = solve_fset(obs.literals)
@@ -248,7 +257,7 @@ class TabularQLearner(RLAgent):
                 td_error = - old_q
 
                 new_q = old_q + self.alpha * (reward + td_error)
-                self.set_q_value(state, action, new_q)
+                #self.set_q_value(state, action, new_q)
 
             if episode_r > max_r:
                 max_r = episode_r
