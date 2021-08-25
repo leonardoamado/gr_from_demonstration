@@ -212,7 +212,7 @@ class TabularQLearner(RLAgent):
                 eps = self.eps()
                 if forced_init and n < init_threshold:
                     action = self.action_list.index(plan[tstep])
-                    #print('Forced step:', action, tstep)
+                    # print('Forced step:', action, tstep)
                 else:
                     if random.random() <= eps:
                         action = random.randint(0, self.actions-1)

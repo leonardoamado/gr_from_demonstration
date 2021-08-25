@@ -4,6 +4,9 @@ from pddlgym.structs import Literal
 from ml.rl import TabularDynaQLearner
 from recognizer import Recognizer
 from pddlgym.core import PDDLEnv
+from pddlgym_planners.fd import FD
+from utils import solve_fset
+import numpy as np
 
 import unittest
 
@@ -27,6 +30,7 @@ class RecognizerTest(unittest.TestCase):
     def setUp(self):
         print("Unit tests for the recognizer")
 
+    @skip
     def test_q_policy_learning(self):
         print("****  Testing Learning using TabularQLearning  ****")
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
@@ -54,7 +58,7 @@ class RecognizerTest(unittest.TestCase):
         self.assertIn(action, find_actions(["pickup(a:block)"], actions))
         print(actions)
 
-    # @skip  # This does not seem to do much better than TabularQLearning
+    @skip  # This does not seem to do much better than TabularQLearning
     def test_dynaq_policy_learning(self):
         print("****  Testing Learning using TabularDynaQLearning  ****")
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
@@ -79,6 +83,24 @@ class RecognizerTest(unittest.TestCase):
     def test_blocks(self):
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog = Recognizer()
+        policies, actions = recog.train_policies(env)
+        planner = FD()
+        correct_goal_index = 1
+        env.fix_problem_index(correct_goal_index)
+        init, _ = env.reset()
+        plan = planner(env.domain, init)
+        traj = []
+        for a in plan:
+            state_action_pair = (solve_fset(init.literals), a)
+            traj.append(state_action_pair)
+            init, _, _, _ = env.step(a)
+        print(f"Observations are {traj}")
+        success, goal, rankings = recog.recognize_goal(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+        self.assertEqual(goal, correct_goal_index)
+        self.assertTrue(success)
+        self.assertIsNotNone(rankings)
+        print(rankings)
+        self.assertEquals(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
 
 
 if __name__ == "__main__":
