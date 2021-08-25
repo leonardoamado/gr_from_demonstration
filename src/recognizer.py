@@ -189,18 +189,7 @@ class Recognizer:
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
         print('Correct prediction:', goal==real_goal)
         return goal==real_goal, goal, rankings
-        for n in range(n_goals):
-            env.fix_problem_index(n)
-            init, _ = env.reset()
-            list_of_goals.append(init.goal)
-            divergence = self.evaluate_goal(obs, policies[n], actions)
-            divergences.append(divergence)
-        print(divergences)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
-        div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
-        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
-        print('Correct prediction:', goal==real_goal)
-        return goal==real_goal, goal, rankings
+    
     '''
     Train a policy for each one of the goals. 
     @return a list of policies and and the possible actions of the environment
