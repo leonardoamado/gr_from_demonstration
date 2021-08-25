@@ -170,7 +170,7 @@ class Recognizer:
 
     @return a goal
     '''
-    def recognize_goal(self, env: Env, policies, actions: RLAgent, obs: List, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+    def recognize_goal(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         divergences = []
         list_of_goals = []
         for tup1 in obs:
@@ -187,8 +187,8 @@ class Recognizer:
         rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
-        print('Correct prediction:', goal==real_goal)
-        return goal==real_goal, goal, rankings
+        print('Correct prediction:', goal == real_goal)
+        return goal == real_goal, goal, rankings
         for n in range(n_goals):
             env.fix_problem_index(n)
             init, _ = env.reset()
