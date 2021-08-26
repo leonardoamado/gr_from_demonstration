@@ -11,6 +11,7 @@ from pddlgym.parser import PDDLProblemParser
 from pddlgym.spaces import LiteralActionSpace, LiteralSetSpace, LiteralSpace
 from pddlgym.structs import Predicate, Literal, State
 from typing import Any, Dict, List, Sequence, Collection, Set, Tuple
+from numpy import dtype
 
 
 # Wrapper class for a PDDLProblem

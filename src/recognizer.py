@@ -81,7 +81,7 @@ class Recognizer:
     Performs the entire process of goal recognition using the user assigned functions.
     @return the predicted goal
     '''
-    def complete_recognition(self, env, n_goals=3,obs=None, real_goal=None):
+    def complete_recognition(self, env, n_goals=3, obs=None, real_goal=None):
         policies, actions = self.train_policies(env, n_goals)
         goal = self.recognize_process(env, policies, actions, obs, real_goal)
         return goal
@@ -97,15 +97,15 @@ class Recognizer:
     The recognizer starts with the default conditions
     @return the predicted goal
     '''
-    def complete_recognition_folder(self, folder, observations=[0.1,0.3,0.5,0.7,1.0]):
+    def complete_recognition_folder(self, folder, observations=[0.1, 0.3, 0.5, 0.7, 1.0]):
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
-        env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                      dynamic_action_space=DYNAMIC_ACTION_SPACE)
         obs_traces = []
         n_goals = len(env.problems)
         real_goal = self.load_correct_goal(folder + 'real_hypn.dat')
         for obs in observations:
-            with open(folder +'obs' + str(obs)+'.pkl', "rb") as input_file:
+            with open(folder + 'obs' + str(obs) + '.pkl', "rb") as input_file:
                 obs_traces.append(pickle.load(input_file))
 
         policies, actions = self.train_policies(env, n_goals)
@@ -118,8 +118,6 @@ class Recognizer:
             correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
             result_list.append((correct, goal, rankings))
         return result_list
-
-
 
     ''' TODO FRM: Justify this or remove altogether
     Performs a dummy goal recognition process, where observations are not considered.
@@ -148,8 +146,8 @@ class Recognizer:
                     state_action_pair = (solve_fset(init.literals), a)
                     traj.append(state_action_pair)
                     init, _, _, _ = env.step(a)
-                #Forcefully remove observations, just for testing    
-                #traj = remove_obs(traj, 0.5)
+                # Forcefully remove observations, just for testing
+                # traj = remove_obs(traj, 0.5)
             divergence = self.evaluate_goal(traj, policies[n], actions)
             divergences.append(divergence)
         print(divergences)
@@ -187,13 +185,12 @@ class Recognizer:
         rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
         print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
-        print('Correct prediction:', goal==real_goal)
-        return goal==real_goal, goal, rankings
-
+        print('Correct prediction:', goal == real_goal)
+        return goal == real_goal, goal, rankings
 
     def train(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
         '''
-        Train a policy for each one of the goals. 
+        Train a policy for each one of the goals.
         @return a list of policies and and the possible actions of the environment
         '''
         policies = []
@@ -235,15 +232,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", help="PDDL domain file",
-                    type=str, default='dummy')
+                        type=str, default='dummy')
     parser.add_argument("-p", help="Folder with all problems",
-                    type=str)
+                        type=str)
     parser.add_argument("-t", help="Computing policies or loading and recognizing",
-                    type=str, default='learn')
+                        type=str, default='learn')
     parser.add_argument("-pl", help="Load or save policies file",
-                    type=str, default='policies_saved.pkl')
+                        type=str, default='policies_saved.pkl')
     parser.add_argument("-a", help="Load or save actions file",
-                    type=str, default='saved.pkl')
+                        type=str, default='saved.pkl')
     args = parser.parse_args()
     print(args.d)
     if args.d == 'dummy':
@@ -268,9 +265,9 @@ if __name__ == "__main__":
             with open(args.pl, 'rb') as file:
                 policies = dill.load(file)
             with open(args.a, 'rb') as file:
-                actions = dill.load(file) 
-        n_goals = 3 
-        recog.recognize_goal_dummy(env,policies, actions, None, None)
+                actions = dill.load(file)
+        n_goals = 3
+        recog.recognize_goal_dummy(env, policies, actions, None, None)
     if args.t == 'foldern':
         recog = Recognizer()
         recog.complete_recognition_folder('output/blocks_gr/')

@@ -8,7 +8,7 @@ OBS = [0.1, 0.3, 0.5, 0.7, 1.0]
 
 
 class Experiment:
-    # TODO Fill this in 
+    # TODO Fill this in
     """A single experiment for one recognizer"""
     def __init__(self, recognizer: Recognizer):
         self.recognizer = recognizer
