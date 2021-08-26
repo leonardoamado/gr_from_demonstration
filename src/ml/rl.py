@@ -102,6 +102,17 @@ class RLAgent:
         """
         pass
 
+    @abstractmethod
+    def policy(self, state: Any) -> Any:
+        """The action for the specified state under the currently learned policy
+           (unlike agent_step, this does not update the policy using state as a sample.
+           Args:
+                state (Any): the state observation from the environment
+           Returns:
+                The action prescribed for that state
+        """
+        pass
+
 
 class TabularQLearner(RLAgent):
     """
@@ -154,6 +165,9 @@ class TabularQLearner(RLAgent):
         self.decaying_eps = decaying_eps
         self.alpha = alpha
 
+    def policy(self, state: Any) -> Any:
+        return self.best_action(solve_fset(state))
+
     def agent_step(self, reward: float, state: Any) -> Any:
         # TODO We should definitely implement this better
         return self.best_action(solve_fset(state))
@@ -172,29 +186,29 @@ class TabularQLearner(RLAgent):
             table = pickle.load(path)
             self.q_table = table
 
-    def add_new_state(self, state):
+    def add_new_state(self, state: Any):
         self.q_table[state] = [1. for _ in range(self.actions)]
 
-    def best_action(self, state):
+    def best_action(self, state: Any):
         if state not in self.q_table:
             self.add_new_state(state)
             # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
 
-    def get_max_q(self, state):
+    def get_max_q(self, state: Any):
         if state not in self.q_table:
             self.add_new_state(state)
         return np.max(self.q_table[state])
 
-    def set_q_value(self, state, a, q):
+    def set_q_value(self, state: Any, action: Any, q_value: float):
         if state not in self.q_table:
             self.add_new_state(state)
-        self.q_table[state][a] = q
+        self.q_table[state][action] = q_value
 
-    def get_q_value(self, state, a):
+    def get_q_value(self, state: Any, action: Any) -> float:
         if state not in self.q_table:
             self.add_new_state(state)
-        return self.q_table[state][a]
+        return self.q_table[state][action]
 
     def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
