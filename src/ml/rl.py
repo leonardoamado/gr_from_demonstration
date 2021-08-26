@@ -66,15 +66,17 @@ class RLAgent:
     recommended as development goes on.
     """
     def __init__(self,
-                 problem: int = 0,
+                 env: Env,
+                 problem: int = None,
                  episodes: int = 100,
                  decaying_eps: bool = True,
                  eps: float = 0.9,
                  alpha: float = 0.01,
                  decay: float = 0.00005,
                  gamma: float = 0.99,
-                 action_list: Collection = None,
-                 _random: random = Random()):
+                 action_list: Collection[Literal] = None,
+                 rand: Random = Random()):
+        self.env = env
         self.problem = problem
         self.episodes = episodes
         self.decaying_eps = decaying_eps
@@ -83,6 +85,9 @@ class RLAgent:
         self.decay = decay
         self.gamma = gamma
         self.action_list = action_list
+        self._random = rand
+        if problem:
+            self.env.fix_problem_index(problem)
 
     @abstractmethod
     def agent_step(self, reward: float, state: Any) -> Any:
@@ -113,11 +118,12 @@ class TabularQLearner(RLAgent):
                  decay: float = 0.000002,
                  gamma: float = 0.9,
                  action_list: Collection[Literal] = None,
+                 rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
                  **kwargs):
+        super().__init__(env, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand)
         self.valid_only = valid_only
-        self.env = env
         if not action_list:
             self.action_list = list(env.action_space.all_ground_literals(init_obs, valid_only=False))
         else:
@@ -147,9 +153,6 @@ class TabularQLearner(RLAgent):
             self.eps = lambda: eps
         self.decaying_eps = decaying_eps
         self.alpha = alpha
-        self.problem = problem
-        if problem:
-            self.env.fix_problem_index(problem)
 
     def agent_step(self, reward: float, state: Any) -> Any:
         # TODO We should definitely implement this better
@@ -293,6 +296,7 @@ class TabularDynaQLearner(TabularQLearner):
                  decay: float = 0.000002,
                  gamma: float = 0.9,
                  action_list: Collection[Literal] = None,
+                 rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
                  planning_steps: int = 10,
@@ -300,7 +304,7 @@ class TabularDynaQLearner(TabularQLearner):
         self.planning_steps = planning_steps
         self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to (reward, next_state) tuples
 
-        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
 
     def update_model(self, past_state, past_action, state, reward):
         if past_state not in self.model:
