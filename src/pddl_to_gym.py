@@ -156,57 +156,57 @@ def gr_to_gym(d, output='output', obs_per=100):
     goals = []
     for line in hypothesis:
         goals.append(line)
-    complete_domain(domain, output +'/' + d, None)
+    complete_domain(domain, output + '/' + d, None)
     for count, goal in enumerate(goals):
-        complete_problem(template, problem, task, goal, count, output +'/' + d)
+        complete_problem(template, problem, task, goal, count, output + '/' + d)
     
     #Copy the observations and the correct goal to the desired location
-    complete_obs(observations, output +'/' + d + '/', 'obs.dat')
-    complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')    
+    complete_obs(observations, output + '/' + d + '/', 'obs.dat')
+    complete_obs(correct_goal, output + '/' + d + '/', 'real_hyp.dat')    
 
 
 def gr_to_gym_custom_obs(d, output='output'):
     domain = open(d + "/domain.pddl", "r")
-    hypothesis = open(d+ "/hyps.dat")
-    correct_goal = open(d+ "/real_hyp.dat")
-    observations = open (d + "/obs.dat")
+    hypothesis = open(d + "/hyps.dat")
+    correct_goal = open(d + "/real_hyp.dat")
+    observations = open(d + "/obs.dat")
     template = open(d + "/template.pddl")
 
-    #parse the domain file, generating a task (grounded actions)
+    # parse the domain file, generating a task (grounded actions)
     problem = pyperplan._parse(d + "/domain.pddl", d + "/template.pddl")
     task = grounding.ground_no_goal(problem)
     
-    #Setup directories, still needs some fixing here.
-    Path(output +'/'+ d).mkdir(parents=True, exist_ok=True)
-    Path(output +'/'+ d + '/problems').mkdir(parents=True, exist_ok=True)
+    # Setup directories, still needs some fixing here.
+    Path(output + '/' + d).mkdir(parents=True, exist_ok=True)
+    Path(output + '/' + d + '/problems').mkdir(parents=True, exist_ok=True)
 
-    #Complete domain and multiple problems
+    # Complete domain and multiple problems
     goals = []
     for line in hypothesis:
         goals.append(line)
-    complete_domain(domain, output +'/' + d, None)
+    complete_domain(domain, output + '/' + d, None)
     for count, goal in enumerate(goals):
         complete_problem(template, problem, task, goal, count, output +'/' + d)
-    #Copy the observations and the correct goal to the desired location
-    complete_obs(observations, output +'/' + d + '/', 'obs.dat')
-    complete_obs(correct_goal, output +'/' + d + '/', 'real_hyp.dat')
+    # Copy the observations and the correct goal to the desired location
+    complete_obs(observations, output + '/' + d + '/', 'obs.dat')
+    complete_obs(correct_goal, output + '/' + d + '/', 'real_hyp.dat')
 
 
 def create_observabilities(d, output, ind=0):
-    print(output +'/'+ d + '/problems')
+    print(output + '/' + d + '/problems')
     print(d + "/domain.pddl")
-    env = PDDLEnv(d + "/domain.pddl", d + '/problems',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-                            dynamic_action_space=DYNAMIC_ACTION_SPACE)
+    env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
     planner = FD()
     traj = []
     env.fix_problem_index(ind)
     init, _ = env.reset()
-    #print(f'GOAL {init.goal}')
-    
+    # print(f'GOAL {init.goal}')
+
     # traj is an action pair tuple, need to map this to state action number pair
     plan = planner(env.domain, init)
     traj = []
-    obs_list = [0.1,0.3,0.5,0.7,1.0]
+    obs_list = [0.1, 0.3, 0.5, 0.7, 1.0]
     traj_list = {}
     for a in plan:
         state_action_pair = (solve_fset(init.literals), a)
@@ -234,5 +234,5 @@ def save_obs(traj, out):
 
 if __name__ == "__main__":
     create_observabilities('output/blocks_gr', 'output/blocks_gr')
-    #gr_to_gym_new('dummy_gr', 'output', 100)
-    #TODO create a complete main here
+    # gr_to_gym_new('dummy_gr', 'output', 100)
+    # TODO create a complete main here

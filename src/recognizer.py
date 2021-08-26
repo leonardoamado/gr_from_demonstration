@@ -74,7 +74,7 @@ class Recognizer:
             self.train_policies = training
         if not recog:
             self.recognize_process = self.recognize_goal
-        else:    
+        else:
             self.recognize_process = recog
 
     '''

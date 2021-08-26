@@ -119,8 +119,7 @@ class MLP(torch.nn.Module):
 
     def eps(self, steps):
         return self.end_eps if steps >= self.anneal_until else \
-            self.start_eps - ((self.start_eps - self.end_eps) /
-            self.anneal_until * steps)
+            self.start_eps - ((self.start_eps - self.end_eps) / self.anneal_until * steps)
 
     def parameter_count(self):
         return sum(map(lambda x: reduce(operator.mul, x.shape, 1), self.parameters()))
@@ -131,7 +130,7 @@ class DQN(BaseMethod):
     def __init__(self, env, state, problem=0, params=None, action_list=None, check_partial_goals=True):
         # self, params, actions, input_shape=(4, 64, 64)):
         self.params = params if params is not None \
-            else common.DEFAULT_PARAMS
+            else ml.common.DEFAULT_PARAMS
         self.env = env
         self.env.fix_problem_index(problem)
         self.problem = problem
@@ -185,7 +184,7 @@ class DQN(BaseMethod):
             # for v in lit.variables:
             #     if v.var_type == 'block':
             #         if len(lit.variables) == 2:
-            #             var_offset = 
+            #             var_offset = ?
             #         # var_offset *= self.blocks.index(v.name)
             #     else:
             #         var_offset = 0
@@ -266,13 +265,13 @@ class DQN(BaseMethod):
                     obs, r, done, _ = self.env.step(action)
                     if done:
                         print('GOAL REACHED POGGERS')
-                        r = common.GOAL_REWARD
+                        r = ml.common.GOAL_REWARD
                     else:
-                        r = common.TIMESTEP_REWARD
+                        r = ml.common.TIMESTEP_REWARD
                         if self.check_partial_goals:
                             r += self.check_for_partial_goals(obs)
                 except InvalidAction:
-                    r = common.INVALID_ACTION_REWARD
+                    r = ml.common.INVALID_ACTION_REWARD
                 next_state = self.build_state(obs)
                 # if done:
                 #     next_state = state
@@ -315,7 +314,7 @@ class DQN(BaseMethod):
             # self.average_qs.append(avg_q)
             if (episode + 1) % 1000 == 0:
                 print(f'Episode {episode} ended. Time to process: {elapsed_time}. Reward earned: {episode_r}. Episode loss: {episode_loss}. Avg. Q after episode: {0}. Current eps: {self.net.eps(training_steps)}')
-            
+
             self.curr_state.clear()
             self.next_state.clear()
             self.goal_literals_achieved.clear()
@@ -327,7 +326,7 @@ class DQN(BaseMethod):
         r = 0.
         for lit in literals:
             if lit not in self.goal_literals_achieved and lit in goals:
-                r += common.PARTIAL_GOAL_REWARD
+                r += ml.common.PARTIAL_GOAL_REWARD
                 self.goal_literals_achieved.add(lit)
         return r
 
@@ -366,7 +365,7 @@ class DQN(BaseMethod):
         path = f'{scenario_dir}/{self.net.name}_{scenario}_{time.time()}.pt'
         torch.save(self.net.state_dict(), path)
 
-    def process_state(self, 
+    def process_state(self,
                       obs,
                       epsilon=0.,
                       distribution='softmax',
@@ -398,7 +397,6 @@ class DQN(BaseMethod):
 
     # def build_action(self, a):
     #     return [1 if a == i else 0 for i in range(self.net.actions)]
-
 
     # def rnd_reward(self, s):
     #     s_rnd = self.net.to_net(s)

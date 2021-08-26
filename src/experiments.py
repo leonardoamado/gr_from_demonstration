@@ -42,7 +42,7 @@ def run_experiments():
             blocks_results[str(obs)].append(int(r[0]))
             blocks_results['full'].append(int(r[0]))
     print('Blocks results')
-    #Print results
+    # Print results
     for obs in OBS:
         avg = sum(blocks_results[str(obs)]) / len(blocks_results[str(obs)])
         print('OBS:', obs, 'Accuracy:', avg)

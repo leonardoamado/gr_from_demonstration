@@ -97,7 +97,7 @@ class HashLiteralSpaceWrapper(MultiBinary):
         # indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
         # self.indices, shapes = indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
         self.indices = self.compute_indices(self.problem)
-        self._all_ground_literals = list(indices.keys())
+        self._all_ground_literals = list(self.indices.keys())
         self.n = len(self._all_ground_literals)
 
         super().__init__(self.n)
