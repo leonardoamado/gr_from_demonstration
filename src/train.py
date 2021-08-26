@@ -2,21 +2,18 @@ from numpy import deg2rad
 from ml.linear import LinearQLearning
 from ml.rl import TabularQLearner
 from ml.dqn import DQN
+from pddlgym_planners.fd import FD
+from pddlgym.core import InvalidAction
 import json
 import time
-# from ..env_manager import EnvManager
+import numpy as np
+import pddlgym
 from matplotlib import pyplot as plt
 import ml.metrics as m
-import sys, os
+import sys
+import os
 sys.path.append(os.path.abspath(os.path.join('.')))
 sys.path.append(os.path.abspath(os.path.join('..')))
-
-import numpy as np
-from pddlgym_planners.fd import FD
-
-from pddlgym.core import InvalidAction
-
-import pddlgym
 
 # configs for environment
 
@@ -29,8 +26,8 @@ DYNAMIC_ACTION_SPACE = True
 # when listing possible actions.
 
 env = pddlgym.make("PDDLEnvBlocks-v0",
-                    raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
-                    dynamic_action_space=DYNAMIC_ACTION_SPACE)
+                   raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                   dynamic_action_space=DYNAMIC_ACTION_SPACE)
 
 
 #############################
@@ -102,10 +99,9 @@ for n in range(n_goals):
         traj.append(state_action_pair)
         obs, _, _, _ = env.step(a)
     ds = {}
-    
+
     # compute policy with multiple epsilon values (only relevant when not doing softmax)
     for eps in epsilons:
-        
         # pretty bad implementation of a plot, but w.e.
         divergences = []
         for i in range(n_goals):
@@ -124,5 +120,3 @@ for n in range(n_goals):
         # ds[f'p{n}'].append([d1, d2, d3, d4])
         # m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
         m.plot_mean_divergence(n, eps, divergences)
-
-

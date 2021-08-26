@@ -1,11 +1,13 @@
 # from env_manager import EnvManager
 from env_manager import EnvManager
-import matplotlib; matplotlib.use('agg')
+import matplotlib
 import matplotlib.pyplot as plt
 import cv2
 import os
+matplotlib.use('agg')
 
 OUT_IMG_FORMAT = 'jpg'
+
 
 class TraceExtractor:
     """
@@ -52,7 +54,6 @@ class VisualTraceExtractor(TraceExtractor):
                 trace = self.env.render()
                 self.save_trace(trace, self.domain_name, problem_name, trace_name)
                 plt.close('all')
-
 
     def save_trace(self, trace, domain, problem, trace_name):
         dataset_path = os.environ['DATASETPATH']
