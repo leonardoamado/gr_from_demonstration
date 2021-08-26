@@ -337,11 +337,11 @@ class DQN(BaseMethod):
         os.makedirs(log_path, exist_ok=True)
         return SummaryWriter(log_dir=log_path)
 
-    def write_tensorboard(self, w, l, r, q):
-        w.add_scalar('Reward per episode', r)
-        w.add_scalar('Avg Q per episode', q)
-        w.add_scalar('Loss per episode', l)
-        w.flush()
+    def write_tensorboard(self, writer, loss, reward, q_avg):
+        writer.add_scalar('Reward per episode', reward)
+        writer.add_scalar('Avg Q per episode', q_avg)
+        writer.add_scalar('Loss per episode', loss)
+        writer.flush()
 
     def normalize_reward(self, r):
         return r

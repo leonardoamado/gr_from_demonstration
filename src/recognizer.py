@@ -1,12 +1,10 @@
 from typing import Any, Collection, List, Tuple
 from gym.core import Env
 from numpy import deg2rad
-from ml.linear import LinearQLearning
 from ml.rl import RLAgent, TabularQLearner
 from ml.dqn import DQN
 import json
 import time
-# from ..env_manager import EnvManager
 from matplotlib import pyplot as plt
 import ml.metrics as m
 import sys
@@ -21,7 +19,6 @@ from pddlgym.core import InvalidAction, PDDLEnv
 from pddlgym.structs import Literal
 import random
 import pickle
-# sys.path.append(os.path.abspath(os.path.join('.')))
 sys.path.append(os.path.abspath(os.path.join('..')))
 from pddlgym_planners.fd import FD
 
