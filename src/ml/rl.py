@@ -6,6 +6,8 @@ import numpy as np
 import random
 import datetime
 
+from random import Random
+
 from pddlgym.core import InvalidAction
 from pddlgym.structs import Literal
 
@@ -71,7 +73,8 @@ class RLAgent:
                  alpha: float = 0.01,
                  decay: float = 0.00005,
                  gamma: float = 0.99,
-                 action_list: Collection = None):
+                 action_list: Collection = None,
+                 _random: random = Random()):
         self.problem = problem
         self.episodes = episodes
         self.decaying_eps = decaying_eps
@@ -214,8 +217,8 @@ class TabularQLearner(RLAgent):
                     action = self.action_list.index(plan[tstep])
                     # print('Forced step:', action, tstep)
                 else:
-                    if random.random() <= eps:
-                        action = random.randint(0, self.actions-1)
+                    if self._random.random() <= eps:
+                        action = self._random.randint(0, self.actions-1)
                         # a = self.env.action_space.sample(state)
                     else:
                         action = self.best_action(state)
@@ -306,8 +309,8 @@ class TabularDynaQLearner(TabularQLearner):
 
     def planning_step(self):
         for i in range(self.planning_steps):
-            past_state = random.choice(list(self.model.keys()))
-            past_action = random.choice(list(self.model[past_state].keys()))
+            past_state = self._random.choice(list(self.model.keys()))
+            past_action = self._random.choice(list(self.model[past_state].keys()))
             state, reward = self.model[past_state][past_action]
             if state is None:
                 td_error = - self.get_q_value(past_state, past_action)
@@ -333,8 +336,8 @@ class TabularDynaQLearner(TabularQLearner):
             tstep = 0
             while tstep < tsteps and not done:
                 eps = self.eps()
-                if random.random() <= eps:
-                    action = random.randint(0, self.actions-1)
+                if self._random.random() <= eps:
+                    action = self._random.randint(0, self.actions-1)
                     # a = self.env.action_space.sample(state)
                 else:
                     action = self.best_action(state)
