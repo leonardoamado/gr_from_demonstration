@@ -30,7 +30,7 @@ from pddlgym_planners.fd import FD
 #   decay: 0.0000002
 #   timesteps: 100
 #   alpha: 0.01
-#   gamma: 0.99 
+#   gamma: 0.99
 #   patience: 40 (needed?)
 #   1, -1, -10
 #   found goal once in some thousand episodes
@@ -41,10 +41,10 @@ from pddlgym_planners.fd import FD
 #   decay: 0.0000002
 #   timesteps: 100
 #   alpha: 0.01
-#   gamma: 0.99 
+#   gamma: 0.99
 #   patience: 40 (needed?)
 #   1, 0, -10
-#   
+#
 #   searches a small space of states because of 0 on every timestep
 #
 # run 3
@@ -190,14 +190,14 @@ class TabularQLearner(RLAgent):
             self.add_new_state(state)
         return self.q_table[state][a]
 
-    def learn(self, forced_init = True, init_threshold = 20):
+    def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
         done_times = 0
         patience = 0
         converged_at = None
         max_r = float("-inf")
-        init, _ = self.env.reset()      
+        init, _ = self.env.reset()
         planner = FD()
         init, _ = self.env.reset()
         plan = planner(self.env.domain, init)
@@ -257,7 +257,7 @@ class TabularQLearner(RLAgent):
                 td_error = - old_q
 
                 new_q = old_q + self.alpha * (reward + td_error)
-                #self.set_q_value(state, action, new_q)
+                # self.set_q_value(state, action, new_q)
 
             if episode_r > max_r:
                 max_r = episode_r
@@ -295,8 +295,7 @@ class TabularDynaQLearner(TabularQLearner):
                  planning_steps: int = 10,
                  **kwargs):
         self.planning_steps = planning_steps
-        self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to 
-                         # (reward, next_state) tuples
+        self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to (reward, next_state) tuples
 
         super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
 
