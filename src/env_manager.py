@@ -1,8 +1,9 @@
 import sys
-print(sys.path)
-sys.path.append('../')
 import pddlgym
+print(sys.path)
+sys.path.append('..')
 from pddlgym_planners.fd import FD
+
 
 class EnvManager:
     """

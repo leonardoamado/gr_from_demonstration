@@ -64,6 +64,7 @@ class Discriminator(torch.nn.Module):
         out = self.r(x)
         return out
 
+
 class FullArchitecture(torch.nn.Module):
     def __init__(self, im_shape, goals):
         self.fe1 = FeatureExtractor(im_shape)

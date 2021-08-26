@@ -90,6 +90,7 @@ class Recognizer:
         return correct_goal
 
     '''
+    TODO Refactor this method away from this class, as it does not belong here
     Performs the entire process of goal recognition using the user a folder as parameter.
     The recognizer starts with the default conditions
     @return the predicted goal
