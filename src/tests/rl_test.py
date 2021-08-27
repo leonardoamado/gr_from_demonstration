@@ -1,12 +1,13 @@
 import random
 from random import Random
 import unittest
+from unittest.case import skip
 
 from pddlgym.core import PDDLEnv
 
 from ml.rl import RLAgent, TabularDynaQLearner, TabularQLearner
 
-from utils import find_action
+from utils import find_action, find_actions, solve_fset
 
 
 class RLAgentTest(unittest.TestCase):
@@ -22,9 +23,14 @@ class RLAgentTest(unittest.TestCase):
         agent = TabularQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
         print(actions)
-        policy_action = actions[agent.policy(env.problems[0].initial_state)]
-        self.assertEqual(policy_action, find_action("pickup(a:block)", actions))
+        policy_index = agent.policy(env.problems[0].initial_state)
+        policy_action = actions[policy_index]
+        self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
+        print(policy_action)
+        print(agent.get_q_value(solve_fset(env.problems[0].initial_state), policy_index))
+        self.assertGreater(agent.get_q_value(solve_fset(env.problems[0].initial_state), policy_index), 48.)
 
+    @skip
     def test_tabular_dyna_q(self):
         random.seed(1)
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', True, False)
