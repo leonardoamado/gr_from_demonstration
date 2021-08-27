@@ -11,6 +11,7 @@ from pddlgym.parser import PDDLProblemParser
 from pddlgym.spaces import LiteralActionSpace, LiteralSetSpace, LiteralSpace
 from pddlgym.structs import Predicate, Literal, State
 from typing import Any, Dict, List, Sequence, Collection, Set, Tuple
+from numpy import dtype
 
 
 # Wrapper class for a PDDLProblem
@@ -97,7 +98,7 @@ class HashLiteralSpaceWrapper(MultiBinary):
         # indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
         # self.indices, shapes = indices, shapes = compute_indices(problem.all_ground_literals, problem.objects, problem.predicates.values())
         self.indices = self.compute_indices(self.problem)
-        self._all_ground_literals = list(indices.keys())
+        self._all_ground_literals = list(self.indices.keys())
         self.n = len(self._all_ground_literals)
 
         super().__init__(self.n)

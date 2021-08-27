@@ -100,7 +100,7 @@ class RecognizerTest(unittest.TestCase):
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
         print(rankings)
-        self.assertEquals(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
+        self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
 
 
 if __name__ == "__main__":

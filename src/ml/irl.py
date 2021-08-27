@@ -27,8 +27,8 @@ class FeatureExtractor(torch.nn.Module):
         return x
 
 
-t = FeatureExtractor((64,64))
-z = torch.rand((1,1,64,64))
+t = FeatureExtractor((64, 64))
+z = torch.rand((1, 1, 64, 64))
 print(t(z).shape)
 # print(t.parameter_count())
 
@@ -56,13 +56,14 @@ class Discriminator(torch.nn.Module):
     def __init__(self, units):
         self.fc1 = torch.nn.Linear(units, 128)
         self.fc2 = torch.nn.Linear(128, 128)
-        self.r   = torch.nn.Linear(128, 1)
+        self.r = torch.nn.Linear(128, 1)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         out = self.r(x)
         return out
+
 
 class FullArchitecture(torch.nn.Module):
     def __init__(self, im_shape, goals):

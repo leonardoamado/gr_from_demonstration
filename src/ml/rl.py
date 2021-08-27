@@ -6,6 +6,8 @@ import numpy as np
 import random
 import datetime
 
+from random import Random
+
 from pddlgym.core import InvalidAction
 from pddlgym.structs import Literal
 
@@ -30,7 +32,7 @@ from pddlgym_planners.fd import FD
 #   decay: 0.0000002
 #   timesteps: 100
 #   alpha: 0.01
-#   gamma: 0.99 
+#   gamma: 0.99
 #   patience: 40 (needed?)
 #   1, -1, -10
 #   found goal once in some thousand episodes
@@ -41,10 +43,10 @@ from pddlgym_planners.fd import FD
 #   decay: 0.0000002
 #   timesteps: 100
 #   alpha: 0.01
-#   gamma: 0.99 
+#   gamma: 0.99
 #   patience: 40 (needed?)
 #   1, 0, -10
-#   
+#
 #   searches a small space of states because of 0 on every timestep
 #
 # run 3
@@ -64,14 +66,17 @@ class RLAgent:
     recommended as development goes on.
     """
     def __init__(self,
-                 problem: int = 0,
+                 env: Env,
+                 problem: int = None,
                  episodes: int = 100,
                  decaying_eps: bool = True,
                  eps: float = 0.9,
                  alpha: float = 0.01,
                  decay: float = 0.00005,
                  gamma: float = 0.99,
-                 action_list: Collection = None):
+                 action_list: Collection[Literal] = None,
+                 rand: Random = Random()):
+        self.env = env
         self.problem = problem
         self.episodes = episodes
         self.decaying_eps = decaying_eps
@@ -80,6 +85,9 @@ class RLAgent:
         self.decay = decay
         self.gamma = gamma
         self.action_list = action_list
+        self._random = rand
+        if problem:
+            self.env.fix_problem_index(problem)
 
     @abstractmethod
     def agent_step(self, reward: float, state: Any) -> Any:
@@ -91,6 +99,17 @@ class RLAgent:
                 last step
         Returns:
             The action the agent is taking.
+        """
+        pass
+
+    @abstractmethod
+    def policy(self, state: Any) -> Any:
+        """The action for the specified state under the currently learned policy
+           (unlike agent_step, this does not update the policy using state as a sample.
+           Args:
+                state (Any): the state observation from the environment
+           Returns:
+                The action prescribed for that state
         """
         pass
 
@@ -110,11 +129,12 @@ class TabularQLearner(RLAgent):
                  decay: float = 0.000002,
                  gamma: float = 0.9,
                  action_list: Collection[Literal] = None,
+                 rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
                  **kwargs):
+        super().__init__(env, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand)
         self.valid_only = valid_only
-        self.env = env
         if not action_list:
             self.action_list = list(env.action_space.all_ground_literals(init_obs, valid_only=False))
         else:
@@ -144,9 +164,9 @@ class TabularQLearner(RLAgent):
             self.eps = lambda: eps
         self.decaying_eps = decaying_eps
         self.alpha = alpha
-        self.problem = problem
-        if problem:
-            self.env.fix_problem_index(problem)
+
+    def policy(self, state: Any) -> Any:
+        return self.best_action(solve_fset(state))
 
     def agent_step(self, reward: float, state: Any) -> Any:
         # TODO We should definitely implement this better
@@ -166,38 +186,38 @@ class TabularQLearner(RLAgent):
             table = pickle.load(path)
             self.q_table = table
 
-    def add_new_state(self, state):
+    def add_new_state(self, state: Any):
         self.q_table[state] = [1. for _ in range(self.actions)]
 
-    def best_action(self, state):
+    def best_action(self, state: Any):
         if state not in self.q_table:
             self.add_new_state(state)
             # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
 
-    def get_max_q(self, state):
+    def get_max_q(self, state: Any):
         if state not in self.q_table:
             self.add_new_state(state)
         return np.max(self.q_table[state])
 
-    def set_q_value(self, state, a, q):
+    def set_q_value(self, state: Any, action: Any, q_value: float):
         if state not in self.q_table:
             self.add_new_state(state)
-        self.q_table[state][a] = q
+        self.q_table[state][action] = q_value
 
-    def get_q_value(self, state, a):
+    def get_q_value(self, state: Any, action: Any) -> float:
         if state not in self.q_table:
             self.add_new_state(state)
-        return self.q_table[state][a]
+        return self.q_table[state][action]
 
-    def learn(self, forced_init = True, init_threshold = 20):
+    def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
         done_times = 0
         patience = 0
         converged_at = None
         max_r = float("-inf")
-        init, _ = self.env.reset()      
+        init, _ = self.env.reset()
         planner = FD()
         init, _ = self.env.reset()
         plan = planner(self.env.domain, init)
@@ -215,8 +235,8 @@ class TabularQLearner(RLAgent):
                     action = self.action_list.index(plan[tstep])
                     # print('Forced step:', action, tstep)
                 else:
-                    if random.random() <= eps:
-                        action = random.randint(0, self.actions-1)
+                    if self._random.random() <= eps:
+                        action = self._random.randint(0, self.actions-1)
                         # a = self.env.action_space.sample(state)
                     else:
                         action = self.best_action(state)
@@ -258,7 +278,7 @@ class TabularQLearner(RLAgent):
                 td_error = - old_q
 
                 new_q = old_q + self.alpha * (reward + td_error)
-                #self.set_q_value(state, action, new_q)
+                # self.set_q_value(state, action, new_q)
 
             if episode_r > max_r:
                 max_r = episode_r
@@ -291,15 +311,15 @@ class TabularDynaQLearner(TabularQLearner):
                  decay: float = 0.000002,
                  gamma: float = 0.9,
                  action_list: Collection[Literal] = None,
+                 rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
                  planning_steps: int = 10,
                  **kwargs):
         self.planning_steps = planning_steps
-        self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to 
-                         # (reward, next_state) tuples
+        self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to (reward, next_state) tuples
 
-        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
 
     def update_model(self, past_state, past_action, state, reward):
         if past_state not in self.model:
@@ -308,8 +328,8 @@ class TabularDynaQLearner(TabularQLearner):
 
     def planning_step(self):
         for i in range(self.planning_steps):
-            past_state = random.choice(list(self.model.keys()))
-            past_action = random.choice(list(self.model[past_state].keys()))
+            past_state = self._random.choice(list(self.model.keys()))
+            past_action = self._random.choice(list(self.model[past_state].keys()))
             state, reward = self.model[past_state][past_action]
             if state is None:
                 td_error = - self.get_q_value(past_state, past_action)
@@ -335,8 +355,8 @@ class TabularDynaQLearner(TabularQLearner):
             tstep = 0
             while tstep < tsteps and not done:
                 eps = self.eps()
-                if random.random() <= eps:
-                    action = random.randint(0, self.actions-1)
+                if self._random.random() <= eps:
+                    action = self._random.randint(0, self.actions-1)
                     # a = self.env.action_space.sample(state)
                 else:
                     action = self.best_action(state)
