@@ -273,24 +273,29 @@ class TabularQLearner(RLAgent):
                 eps = self.eps()
                 if forced_init and n < init_threshold and tstep < (len(plan)):
                     action = self.action_list.index(plan[tstep])
+                    self.last_action = action
                     # print('Forced step:', action, tstep)
                 else:
                     if self._random.random() <= eps:
                         action = self._random.randint(0, self.actions-1)
+                        self.last_action = action
                         # a = self.env.action_space.sample(state)
                     else:
                         action = self.best_action(state)
+                        self.last_action = action
                 try:
                     obs, reward, done, _ = self.env.step(self.action_list[action])
                     next_state = solve_fset(obs.literals)
                     if done:
                         reward = 100.
+                        print(".", end="")
                 except InvalidAction:
                     next_state = state
                     reward = -1.
                     done = False
 
                 if done:
+                    # print(".", end="")
                     done_times += 1
 
                 # standard q-learning algorithm
