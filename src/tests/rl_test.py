@@ -1,6 +1,7 @@
 import random
 from random import Random
 import unittest
+from unittest.case import skip
 
 from pddlgym.core import PDDLEnv
 
@@ -25,6 +26,7 @@ class RLAgentTest(unittest.TestCase):
         policy_action = actions[agent.policy(env.problems[0].initial_state)]
         self.assertEqual(policy_action, find_action("pickup(a:block)", actions))
 
+    @skip
     def test_tabular_dyna_q(self):
         random.seed(1)
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', True, False)

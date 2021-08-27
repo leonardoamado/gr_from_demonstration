@@ -153,23 +153,19 @@ class TabularQLearner(RLAgent):
         self.base_eps = eps
         self.patience = 400000
         if decaying_eps:
-
             def epsilon():
                 self.c_eps = max(self.c_eps - self.decay, 0.1)
 
                 return self.c_eps
-
             self.eps = epsilon
         else:
             self.eps = lambda: eps
         self.decaying_eps = decaying_eps
         self.alpha = alpha
+        self.last_state = None
+        self.last_action = None
 
     def policy(self, state: Any) -> Any:
-        return self.best_action(solve_fset(state))
-
-    def agent_step(self, reward: float, state: Any) -> Any:
-        # TODO We should definitely implement this better
         return self.best_action(solve_fset(state))
 
     def save_q_table(self, path: str):
@@ -210,6 +206,50 @@ class TabularQLearner(RLAgent):
             self.add_new_state(state)
         return self.q_table[state][action]
 
+    def agent_start(self, state: Any) -> Any:
+        """The first method called when the experiment starts, 
+        called after the environment starts.
+        Args:
+            state (Numpy array): the state from the
+                environment's env_start function.
+        Returns:
+            (int) the first action the agent takes.
+        """
+        self.last_state = state
+        self.last_action = self.policy(state)
+        return self.last_action
+
+    def agent_step(self, reward: float, state: Any) -> Any:
+        """A step taken by the agent.
+
+        Args:
+            reward (float): the reward received for taking the last action taken
+            state (Any): the state from the
+                environment's step based on where the agent ended up after the
+                last step
+        Returns:
+            (int) The action the agent takes given this state.
+        """
+        max_q = self.get_max_q(state)
+        old_q = self.get_q_value(self.last_state, self.last_action)
+
+        td_error = self.gamma*max_q - old_q
+        new_q = old_q + self.alpha * (reward + td_error)
+
+        self.set_q_value(self.last_state, self.last_action, new_q)
+        action = self.best_action(state)
+        self.last_state = state
+        self.last_action = action
+        return action
+
+    def agent_end(self, reward: float) -> Any:
+        old_q = self.get_q_value(self.last_state, self.last_action)
+
+        td_error = - old_q
+
+        new_q = old_q + self.alpha * (reward + td_error)
+        # self.set_q_value(state, action, new_q)
+
     def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
@@ -217,7 +257,6 @@ class TabularQLearner(RLAgent):
         patience = 0
         converged_at = None
         max_r = float("-inf")
-        init, _ = self.env.reset()
         planner = FD()
         init, _ = self.env.reset()
         plan = planner(self.env.domain, init)
@@ -227,6 +266,7 @@ class TabularQLearner(RLAgent):
             episode_r = 0
             state, info = self.env.reset()
             state = solve_fset(state.literals)
+            action = self.agent_start(state)
             done = False
             tstep = 0
             while tstep < tsteps and not done:
@@ -245,13 +285,6 @@ class TabularQLearner(RLAgent):
                     next_state = solve_fset(obs.literals)
                     if done:
                         reward = 100.
-                    # this piece of code was a test that failed miserably.
-                    # whenever the agent reaches a state that contains a fact
-                    # of the goal, give a positive reward.
-                    #
-                    # else:
-                    #     if self.check_partial_goals:
-                    #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
                 except InvalidAction:
                     next_state = state
                     reward = -1.
@@ -261,24 +294,12 @@ class TabularQLearner(RLAgent):
                     done_times += 1
 
                 # standard q-learning algorithm
+                action = self.agent_step(reward, next_state)
 
-                next_max_q = self.get_max_q(next_state)
-                old_q = self.get_q_value(state, action)
-
-                td_error = self.gamma*next_max_q - old_q
-                new_q = old_q + self.alpha * (reward + td_error)
-
-                self.set_q_value(state, action, new_q)
-                state = next_state
                 tstep += 1
                 episode_r += reward
             if done:  # One last update at the terminal state
-                old_q = self.get_q_value(state, action)
-
-                td_error = - old_q
-
-                new_q = old_q + self.alpha * (reward + td_error)
-                # self.set_q_value(state, action, new_q)
+                self.agent_end(reward)
 
             if episode_r > max_r:
                 max_r = episode_r
