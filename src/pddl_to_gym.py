@@ -193,7 +193,7 @@ def gr_to_gym_custom_obs(d, output='output'):
 
 
 def create_observabilities(d, output, ind=0):
-    print(output +'/'+ d + '/problems')
+    print(output +'/'+ '/problems')
     print(d + "/domain.pddl")
     env = PDDLEnv(d + "/domain.pddl", d + '/problems',raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                             dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -201,6 +201,7 @@ def create_observabilities(d, output, ind=0):
     traj = []
     env.fix_problem_index(ind)
     init, _ = env.reset()
+    print(init.goal)
     #print(f'GOAL {init.goal}')
     
     # traj is an action pair tuple, need to map this to state action number pair
@@ -212,6 +213,8 @@ def create_observabilities(d, output, ind=0):
         state_action_pair = (solve_fset(init.literals), a)
         traj.append(state_action_pair)
         init, _, _, _ = env.step(a)
+    print(plan)
+    
     for obs in obs_list:
         traj_list[obs] = remove_obs(traj, obs)
         save_obs(traj_list[obs], output +'/' +'obs' + str(obs)+'.dat')

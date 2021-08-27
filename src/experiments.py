@@ -2,7 +2,7 @@ from recognizer import Recognizer
 
 #Define datasets here
 #Each element of this list is a goal recognition problem with 5 different observabilities
-BLOCKS = ['output/blocks_gr/', 'output/blocks_gr2/']
+BLOCKS = ['output/blocks_gr/', 'output/blocks_gr2/', 'output/blocks_gr3/', 'output/blocks_gr4/']
 OBS=[0.1,0.3,0.5,0.7,1.0]
 
 

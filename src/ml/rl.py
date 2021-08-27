@@ -201,6 +201,7 @@ class TabularQLearner(RLAgent):
         planner = FD()
         init, _ = self.env.reset()
         plan = planner(self.env.domain, init)
+        print(len(plan))
         print('LEARNING FOR GOAL:', init.goal)
         for n in range(self.episodes):
             episode_r = 0
@@ -210,7 +211,7 @@ class TabularQLearner(RLAgent):
             tstep = 0
             while tstep < tsteps and not done:
                 eps = self.eps()
-                if forced_init and n < init_threshold:
+                if forced_init and n < init_threshold and tstep < (len(plan)):
                     action = self.action_list.index(plan[tstep])
                     # print('Forced step:', action, tstep)
                 else:
