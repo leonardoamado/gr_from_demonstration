@@ -5,25 +5,10 @@ from ml.rl import TabularDynaQLearner
 from recognizer import Recognizer
 from pddlgym.core import PDDLEnv
 from pddlgym_planners.fd import FD
-from utils import solve_fset
+from utils import solve_fset, find_action, find_actions
 import numpy as np
 
 import unittest
-
-
-def find_action(action_name: str, actions: Collection[Literal]) -> Literal:
-    for action in actions:
-        if action.__repr__() == action_name:
-            return action
-    return None
-
-
-def find_actions(action_names: Collection[str], actions: Collection[Literal]) -> Collection[Literal]:
-    literals = []
-    for action in actions:
-        if action.__repr__() in action_names:
-            literals.append(action)
-    return literals
 
 
 class RecognizerTest(unittest.TestCase):
