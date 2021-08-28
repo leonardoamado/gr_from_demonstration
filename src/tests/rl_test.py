@@ -23,12 +23,13 @@ class RLAgentTest(unittest.TestCase):
         agent = TabularQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
         print(actions)
-        policy_index = agent.policy(env.problems[0].initial_state)
+        initial_state = solve_fset(env.problems[0].initial_state)
+        policy_index = agent.policy(initial_state)
         policy_action = actions[policy_index]
         self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
         print(policy_action)
-        print(agent.get_q_value(solve_fset(env.problems[0].initial_state), policy_index))
-        self.assertGreater(agent.get_q_value(solve_fset(env.problems[0].initial_state), policy_index), 48.)
+        print(agent.get_q_value(initial_state, policy_index))
+        self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
 
     @skip
     def test_tabular_dyna_q(self):

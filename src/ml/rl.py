@@ -166,7 +166,15 @@ class TabularQLearner(RLAgent):
         self.last_action = None
 
     def policy(self, state: Any) -> Any:
-        return self.best_action(solve_fset(state))
+        return self.best_action(state)
+
+    def epsilon_greedy_policy(self, state: Any) -> Any:
+        eps = self.eps()
+        if self._random.random() <= eps:
+            action = self._random.randint(0, self.actions-1)
+        else:
+            action = self.policy(state)
+        return action
 
     def save_q_table(self, path: str):
         # sadly, this does not work, because the state we are using
@@ -237,7 +245,8 @@ class TabularQLearner(RLAgent):
         new_q = old_q + self.alpha * (reward + td_error)
 
         self.set_q_value(self.last_state, self.last_action, new_q)
-        action = self.best_action(state)
+        # action = self.best_action(state)
+        action = self.epsilon_greedy_policy(state)
         self.last_state = state
         self.last_action = action
         return action
@@ -270,25 +279,15 @@ class TabularQLearner(RLAgent):
             done = False
             tstep = 0
             while tstep < tsteps and not done:
-                eps = self.eps()
                 if forced_init and n < init_threshold and tstep < (len(plan)):
                     action = self.action_list.index(plan[tstep])
                     self.last_action = action
                     # print('Forced step:', action, tstep)
-                else:
-                    if self._random.random() <= eps:
-                        action = self._random.randint(0, self.actions-1)
-                        self.last_action = action
-                        # a = self.env.action_space.sample(state)
-                    else:
-                        action = self.best_action(state)
-                        self.last_action = action
                 try:
                     obs, reward, done, _ = self.env.step(self.action_list[action])
                     next_state = solve_fset(obs.literals)
                     if done:
                         reward = 100.
-                        print(".", end="")
                 except InvalidAction:
                     next_state = state
                     reward = -1.
@@ -310,7 +309,7 @@ class TabularQLearner(RLAgent):
                 max_r = episode_r
                 print("New all time high reward:", episode_r)
             if (n + 1) % 1000 == 0:
-                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {eps}')
+                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {self.c_eps}')
                 if done_times <= 10:
                     patience += 1
                     if patience >= self.patience:
