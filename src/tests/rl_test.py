@@ -31,7 +31,7 @@ class RLAgentTest(unittest.TestCase):
         print(agent.get_q_value(initial_state, policy_index))
         self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
 
-    @skip
+    # @skip
     def test_tabular_dyna_q(self):
         random.seed(1)
         env = PDDLEnv('output/blocks_gr/blocks_gr.pddl', 'output/blocks_gr/problems/', True, False)
@@ -43,8 +43,13 @@ class RLAgentTest(unittest.TestCase):
         agent = TabularDynaQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
         print(actions)
-        policy_action = actions[agent.policy(env.problems[0].initial_state)]
-        self.assertEqual(policy_action, find_action("pickup(a:block)", actions))
+        initial_state = solve_fset(env.problems[0].initial_state)
+        policy_index = agent.policy(initial_state)
+        policy_action = actions[policy_index]
+        self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
+        print(policy_action)
+        print(agent.get_q_value(initial_state, policy_index))
+        self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
 
 
 if __name__ == "__main__":

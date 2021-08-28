@@ -15,6 +15,7 @@ from ml.common import GOAL_REWARD
 from ml.common_functions import check_for_partial_goals
 from utils import solve_fset
 from pddlgym_planners.fd import FD
+from tqdm import tqdm
 
 
 # This will be an implementation of Q-Learning with Gym
@@ -90,6 +91,18 @@ class RLAgent:
             self.env.fix_problem_index(problem)
 
     @abstractmethod
+    def agent_start(self, state: Any) -> Any:
+        """The first method called when the experiment starts, 
+        called after the environment starts.
+        Args:
+            state (Numpy array): the state from the
+                environment's env_start function.
+        Returns:
+            (int) the first action the agent takes.
+        """
+        pass
+
+    @abstractmethod
     def agent_step(self, reward: float, state: Any) -> Any:
         """A step taken by the agent.
         Args:
@@ -99,6 +112,15 @@ class RLAgent:
                 last step
         Returns:
             The action the agent is taking.
+        """
+        pass
+
+    def agent_end(self, reward: float) -> Any:
+        """Called when the agent terminates.
+
+        Args:
+            reward (float): the reward the agent received for entering the
+                terminal state.
         """
         pass
 
@@ -252,12 +274,18 @@ class TabularQLearner(RLAgent):
         return action
 
     def agent_end(self, reward: float) -> Any:
+        """Called when the agent terminates.
+
+        Args:
+            reward (float): the reward the agent received for entering the
+                terminal state.
+        """
         old_q = self.get_q_value(self.last_state, self.last_action)
 
         td_error = - old_q
 
         new_q = old_q + self.alpha * (reward + td_error)
-        # self.set_q_value(state, action, new_q)
+        self.set_q_value(self.last_state, self.last_action, new_q)
 
     def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
@@ -271,7 +299,9 @@ class TabularQLearner(RLAgent):
         plan = planner(self.env.domain, init)
         print(len(plan))
         print('LEARNING FOR GOAL:', init.goal)
-        for n in range(self.episodes):
+        print(f'Using {self.__class__.__name__}')
+        tq = tqdm(range(self.episodes), postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
+        for n in tq:
             episode_r = 0
             state, info = self.env.reset()
             state = solve_fset(state.literals)
@@ -307,9 +337,11 @@ class TabularQLearner(RLAgent):
 
             if episode_r > max_r:
                 max_r = episode_r
-                print("New all time high reward:", episode_r)
+                # print("New all time high reward:", episode_r)
+                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
             if (n + 1) % 1000 == 0:
-                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {self.c_eps}')
+                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
+                # print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {self.c_eps}')
                 if done_times <= 10:
                     patience += 1
                     if patience >= self.patience:
@@ -363,86 +395,58 @@ class TabularDynaQLearner(TabularQLearner):
             new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
             self.set_q_value(past_state, past_action, new_q)
 
-    def learn(self):
-        log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
-        tsteps = 50
-        done_times = 0
-        patience = 0
-        converged_at = None
-        max_r = float("-inf")
-        init, _ = self.env.reset()
-        print('LEARNING FOR GOAL:', init.goal)
-        for n in range(self.episodes):
-            episode_r = 0
-            state, info = self.env.reset()
-            state = solve_fset(state.literals)
-            done = False
-            tstep = 0
-            while tstep < tsteps and not done:
-                eps = self.eps()
-                if self._random.random() <= eps:
-                    action = self._random.randint(0, self.actions-1)
-                    # a = self.env.action_space.sample(state)
-                else:
-                    action = self.best_action(state)
-                try:
-                    obs, reward, done, _ = self.env.step(self.action_list[action])
-                    next_state = solve_fset(obs.literals)
-                    if done:
-                        reward = 100.
-                    # this piece of code was a test that failed miserably.
-                    # whenever the agent reaches a state that contains a fact
-                    # of the goal, give a positive reward.
-                    #
-                    # else:
-                    #     if self.check_partial_goals:
-                    #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
-                except InvalidAction:
-                    next_state = state
-                    reward = -1.
-                    done = False
+    def agent_start(self, state: Any) -> Any:
+        """The first method called when the experiment starts, 
+        called after the environment starts.
+        Args:
+            state (Numpy array): the state from the
+                environment's env_start function.
+        Returns:
+            (int) the first action the agent takes.
+        """
+        self.last_state = state
+        self.last_action = self.policy(state)
+        return self.last_action
 
-                if done:
-                    done_times += 1
+    def agent_step(self, reward: float, state: Any) -> Any:
+        """A step taken by the agent.
 
-                # Dyna q-learning algorithm
+        Args:
+            reward (float): the reward received for taking the last action taken
+            state (Any): the state from the
+                environment's step based on where the agent ended up after the
+                last step
+        Returns:
+            (int) The action the agent takes given this state.
+        """
+        max_q = self.get_max_q(state)
+        old_q = self.get_q_value(self.last_state, self.last_action)
 
-                next_max_q = self.get_max_q(next_state)
-                old_q = self.get_q_value(state, action)
+        td_error = self.gamma*max_q - old_q
+        new_q = old_q + self.alpha * (reward + td_error)
 
-                td_error = self.gamma*next_max_q - old_q
-                new_q = old_q + self.alpha * (reward + td_error)
+        self.set_q_value(self.last_state, self.last_action, new_q)
+        # action = self.best_action(state)
+        action = self.epsilon_greedy_policy(state)
 
-                self.set_q_value(state, action, new_q)
+        self.update_model(self.last_state, self.last_action, state, reward)
+        self.planning_step()
 
-                self.update_model(state, action, next_state, reward)
-                self.planning_step()
+        self.last_state = state
+        self.last_action = action
+        return action
 
-                state = next_state
-                tstep += 1
-                episode_r += reward
-            if done:  # One last update at the terminal state
-                old_q = self.get_q_value(state, action)
+    def agent_end(self, reward: float) -> Any:
+        """Called when the agent terminates.
 
-                td_error = - old_q
+        Args:
+            reward (float): the reward the agent received for entering the
+                terminal state.
+        """
+        old_q = self.get_q_value(self.last_state, self.last_action)
 
-                new_q = old_q + self.alpha * (reward + td_error)
-                self.set_q_value(state, action, new_q)
-                self.update_model(state, action, None, reward)
-            if episode_r > max_r:
-                max_r = episode_r
-                print("New all time high reward:", episode_r)
-            if (n + 1) % 1000 == 0:
-                print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {eps}')
-                if done_times <= 10:
-                    patience += 1
-                    if patience >= self.patience:
-                        print(f"Did not find goal after {n} episodes. Retrying.")
-                        raise InvalidAction("Did not learn")
-                else:
-                    patience = 0
-                if done_times == 1000 and converged_at is not None:
-                    converged_at = n
-                    print(f"***Policy converged to goal at {converged_at}***")
-                done_times = 0
-            self.goal_literals_achieved.clear()
+        td_error = - old_q
+
+        new_q = old_q + self.alpha * (reward + td_error)
+        self.set_q_value(self.last_state, self.last_action, new_q)
+        self.update_model(self.last_state, self.last_action, None, reward)
