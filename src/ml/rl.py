@@ -294,7 +294,6 @@ class TabularQLearner(RLAgent):
         patience = 0
         converged_at = None
         max_r = float("-inf")
-        init, _ = self.env.reset()
         planner = FD()
         init, _ = self.env.reset()
         plan = planner(self.env.domain, init)
@@ -306,6 +305,7 @@ class TabularQLearner(RLAgent):
             episode_r = 0
             state, info = self.env.reset()
             state = solve_fset(state.literals)
+            action = self.agent_start(state)
             done = False
             tstep = 0
             while tstep < tsteps and not done:
@@ -318,13 +318,6 @@ class TabularQLearner(RLAgent):
                     next_state = solve_fset(obs.literals)
                     if done:
                         reward = 100.
-                    # this piece of code was a test that failed miserably.
-                    # whenever the agent reaches a state that contains a fact
-                    # of the goal, give a positive reward.
-                    #
-                    # else:
-                    #     if self.check_partial_goals:
-                    #         r += check_for_partial_goals(obs, self.goal_literals_achieved)
                 except InvalidAction:
                     next_state = state
                     reward = -1.
@@ -336,23 +329,11 @@ class TabularQLearner(RLAgent):
 
                 # standard q-learning algorithm
 
-                next_max_q = self.get_max_q(next_state)
-                old_q = self.get_q_value(state, action)
-
-                td_error = self.gamma*next_max_q - old_q
-                new_q = old_q + self.alpha * (reward + td_error)
-
-                self.set_q_value(state, action, new_q)
-                state = next_state
+                action = self.agent_step(reward, next_state)
                 tstep += 1
                 episode_r += reward
             if done:  # One last update at the terminal state
-                old_q = self.get_q_value(state, action)
-
-                td_error = - old_q
-
-                new_q = old_q + self.alpha * (reward + td_error)
-                # self.set_q_value(state, action, new_q)
+                self.agent_end(reward)
 
             if episode_r > max_r:
                 max_r = episode_r
@@ -373,7 +354,6 @@ class TabularQLearner(RLAgent):
                     print(f"***Policy converged to goal at {converged_at}***")
                 done_times = 0
             self.goal_literals_achieved.clear()
-
 
 
 class TabularDynaQLearner(TabularQLearner):
