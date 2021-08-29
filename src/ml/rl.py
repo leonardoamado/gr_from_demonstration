@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import pickle
-from typing import Any, Collection
+from typing import Any, Collection, NoReturn, overload
 from gym.core import Env
 import numpy as np
 import random
@@ -17,6 +17,7 @@ from utils import solve_fset
 from pddlgym_planners.fd import FD
 from tqdm import tqdm
 
+from queue import PriorityQueue
 
 # This will be an implementation of Q-Learning with Gym
 
@@ -92,7 +93,7 @@ class RLAgent:
 
     @abstractmethod
     def agent_start(self, state: Any) -> Any:
-        """The first method called when the experiment starts, 
+        """The first method called when the experiment starts,
         called after the environment starts.
         Args:
             state (Numpy array): the state from the
@@ -176,7 +177,10 @@ class TabularQLearner(RLAgent):
         self.patience = 400000
         if decaying_eps:
             def epsilon():
-                self.c_eps = max(self.c_eps - self.decay, 0.1)
+                if self.step == 0:
+                    self.c_eps = max(self.c_eps - self.decay, 0.1)
+                else:
+                    self.c_eps = max((self.episodes - self.step)/self.episodes, 0.01)
 
                 return self.c_eps
             self.eps = epsilon
@@ -237,7 +241,7 @@ class TabularQLearner(RLAgent):
         return self.q_table[state][action]
 
     def agent_start(self, state: Any) -> Any:
-        """The first method called when the experiment starts, 
+        """The first method called when the experiment starts,
         called after the environment starts.
         Args:
             state (Numpy array): the state from the
@@ -287,6 +291,19 @@ class TabularQLearner(RLAgent):
         new_q = old_q + self.alpha * (reward + td_error)
         self.set_q_value(self.last_state, self.last_action, new_q)
 
+    def plan_optimistic_initialization(self, init: Any) -> NoReturn:
+        planner = FD()
+        init, _ = self.env.reset()
+        plan = planner(self.env.domain, init)
+        print(f'Initializing rewards using {plan}')
+        obs, _ = self.env.reset()
+        for pstep in plan:
+            state = solve_fset(obs.literals)
+            action = self.action_list.index(pstep)
+            self.set_q_value(state, action, 100)  # I'm putting 1 as the reward not to bias this too much
+            obs, reward, done, _ = self.env.step(self.action_list[action])
+        assert(done)
+
     def learn(self, forced_init: bool = True, init_threshold: int = 20):
         log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
         tsteps = 50
@@ -294,14 +311,17 @@ class TabularQLearner(RLAgent):
         patience = 0
         converged_at = None
         max_r = float("-inf")
-        planner = FD()
         init, _ = self.env.reset()
-        plan = planner(self.env.domain, init)
-        print(len(plan))
+        # planner = FD()
+        # plan = planner(self.env.domain, init)
+        # print(len(plan))
+        if forced_init:
+            self.plan_optimistic_initialization(init)
         print('LEARNING FOR GOAL:', init.goal)
         print(f'Using {self.__class__.__name__}')
         tq = tqdm(range(self.episodes), postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
         for n in tq:
+            self.step = n
             episode_r = 0
             state, info = self.env.reset()
             state = solve_fset(state.literals)
@@ -309,10 +329,10 @@ class TabularQLearner(RLAgent):
             done = False
             tstep = 0
             while tstep < tsteps and not done:
-                if forced_init and n < init_threshold and tstep < (len(plan)):
-                    action = self.action_list.index(plan[tstep])
-                    self.last_action = action
-                    # print('Forced step:', action, tstep)
+                # if forced_init and n < init_threshold and tstep < (len(plan)):
+                #     action = self.action_list.index(plan[tstep])
+                #     self.last_action = action
+                #     print('Forced step:', action, tstep)
                 try:
                     obs, reward, done, _ = self.env.step(self.action_list[action])
                     next_state = solve_fset(obs.literals)
@@ -361,7 +381,7 @@ class TabularDynaQLearner(TabularQLearner):
                  env: Env,
                  init_obs: Any,
                  problem: int = None,
-                 episodes: int = 30000,
+                 episodes: int = 10000,
                  decaying_eps: bool = True,
                  eps: float = 1.0,
                  alpha: float = 0.5,
@@ -396,7 +416,7 @@ class TabularDynaQLearner(TabularQLearner):
             self.set_q_value(past_state, past_action, new_q)
 
     def agent_start(self, state: Any) -> Any:
-        """The first method called when the experiment starts, 
+        """The first method called when the experiment starts,
         called after the environment starts.
         Args:
             state (Numpy array): the state from the
@@ -450,3 +470,88 @@ class TabularDynaQLearner(TabularQLearner):
         new_q = old_q + self.alpha * (reward + td_error)
         self.set_q_value(self.last_state, self.last_action, new_q)
         self.update_model(self.last_state, self.last_action, None, reward)
+
+
+class TabularPrioritisedQLearner(TabularDynaQLearner):
+
+    def __init__(self,
+                 env: Env,
+                 init_obs: Any,
+                 problem: int = None,
+                 episodes: int = 10000,
+                 decaying_eps: bool = True,
+                 eps: float = 1.0,
+                 alpha: float = 0.5,
+                 decay: float = 0.000002,
+                 gamma: float = 0.9,
+                 action_list: Collection[Literal] = None,
+                 rand: Random = Random(),
+                 check_partial_goals: bool = True,
+                 valid_only: bool = False,
+                 planning_steps: int = 8,
+                 priority_theta: float = 90,  # TODO Check that this is agood threshold
+                 **kwargs):
+        self.pqueue = PriorityQueue()
+        self.priority_theta = priority_theta
+        self.inverse_model = {}  # inverse_model stores state-actions that lead to a state
+
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, planning_steps=planning_steps, **kwargs)
+
+    def update_model(self, past_state, past_action, state, reward):
+        if past_state not in self.model:
+            self.model[past_state] = {}
+        if state not in self.inverse_model:
+            self.inverse_model[state] = []
+        self.inverse_model[state].append((past_state, past_action, reward))
+        self.model[past_state][past_action] = (state, reward)
+
+    def planning_step(self):
+        for i in range(self.planning_steps):
+            if self.pqueue.empty():
+                return
+
+            _, past_state, past_action = self.pqueue.get()
+            state, reward = self.model[past_state][past_action]
+            if state is None:
+                td_error = - self.get_q_value(past_state, past_action)
+            else:
+                td_error = self.gamma*self.get_max_q(state) - self.get_q_value(past_state, past_action)
+            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
+            self.set_q_value(past_state, past_action, new_q)
+            for back_state, back_action, back_reward in self.inverse_model[past_state]:
+                priority = abs(back_reward + self.gamma*self.get_max_q(past_state) - self.get_q_value(back_state, back_action))
+                if priority > self.priority_theta:
+                    self.pqueue.put((priority, back_state, back_action))
+        while not self.pqueue.empty():  # Empty out the queue at the end of the planning steps
+            self.pqueue.get()
+
+    def agent_step(self, reward: float, state: Any) -> Any:
+        """A step taken by the agent.
+
+        Args:
+            reward (float): the reward received for taking the last action taken
+            state (Any): the state from the
+                environment's step based on where the agent ended up after the
+                last step
+        Returns:
+            (int) The action the agent takes given this state.
+        """
+        max_q = self.get_max_q(state)
+        old_q = self.get_q_value(self.last_state, self.last_action)
+        self.update_model(self.last_state, self.last_action, state, reward)
+
+        td_error = self.gamma*max_q - old_q
+        # new_q = old_q + self.alpha * (reward + td_error)
+        # self.set_q_value(self.last_state, self.last_action, new_q)
+        # action = self.best_action(state)
+        priority = abs(reward + td_error)
+        if priority > self.priority_theta:
+            self.pqueue.put((priority, self.last_state, self.last_action))
+
+        self.planning_step()
+
+        action = self.epsilon_greedy_policy(state)
+
+        self.last_state = state
+        self.last_action = action
+        return action

@@ -14,6 +14,11 @@ DYNAMIC_ACTION_SPACE = True
 
 
 class TestListElements(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print("*********Testing List Elements*********")
+
     def setUp(self):
         print("Unit tests for all_literals")
 
