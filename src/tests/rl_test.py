@@ -5,7 +5,7 @@ from unittest.case import skip
 
 from pddlgym.core import PDDLEnv
 
-from ml.rl import RLAgent, TabularDynaQLearner, TabularPrioritisedQLearner, TabularQLearner
+from ml.rl import RLAgent, TabularDynaQLearner, TabularPrioritisedQLearner, TabularQLearner, print_q_values
 
 from utils import find_action, find_actions, solve_fset
 
@@ -30,14 +30,15 @@ class RLAgentTest(unittest.TestCase):
         actions = list(env.action_space.all_ground_literals(init, valid_only=False))
         agent = TabularQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
-        print(actions)
+        print(f"Action Space: {actions}")
         initial_state = solve_fset(env.problems[0].initial_state)
         policy_index = agent.policy(initial_state)
         policy_action = actions[policy_index]
         self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
-        print(policy_action)
-        print(agent.get_q_value(initial_state, policy_index))
+        print(f"Action for Initial State: {policy_action}")
+        print(f"Q-value: {agent.get_q_value(initial_state, policy_index)}")
         self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
+        print(print_q_values(agent.get_all_q_values(initial_state), actions))
 
     # @skip
     def test_tabular_dyna_q(self):
@@ -50,14 +51,15 @@ class RLAgentTest(unittest.TestCase):
         actions = list(env.action_space.all_ground_literals(init, valid_only=False))
         agent = TabularDynaQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
-        print(actions)
+        print(f"Action Space: {actions}")
         initial_state = solve_fset(env.problems[0].initial_state)
         policy_index = agent.policy(initial_state)
         policy_action = actions[policy_index]
         self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
-        print(policy_action)
-        print(agent.get_q_value(initial_state, policy_index))
+        print(f"Action for Initial State: {policy_action}")
+        print(f"Q-value: {agent.get_q_value(initial_state, policy_index)}")
         self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
+        print(print_q_values(agent.get_all_q_values(initial_state), actions))
 
     def test_prioritised_dyna_q(self):
         random.seed(1)
@@ -69,14 +71,15 @@ class RLAgentTest(unittest.TestCase):
         actions = list(env.action_space.all_ground_literals(init, valid_only=False))
         agent = TabularPrioritisedQLearner(env, init, action_list=actions, episodes=10000, rand=Random(1))
         agent.learn()
-        print(actions)
+        print(f"Action Space: {actions}")
         initial_state = solve_fset(env.problems[0].initial_state)
         policy_index = agent.policy(initial_state)
         policy_action = actions[policy_index]
         self.assertIn(policy_action, find_actions(["unstack(d:block)", "pickup(a:block)"], actions))
-        print(policy_action)
-        print(agent.get_q_value(initial_state, policy_index))
+        print(f"Action for Initial State: {policy_action}")
+        print(f"Q-value: {agent.get_q_value(initial_state, policy_index)}")
         self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
+        print(print_q_values(agent.get_all_q_values(initial_state), actions))
 
 
 if __name__ == "__main__":

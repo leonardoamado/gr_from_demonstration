@@ -137,6 +137,13 @@ class RLAgent:
         pass
 
 
+def print_q_values(q_values: Collection[int], actions: Collection[Literal]):
+    values = ""
+    for i, q in enumerate(q_values):
+        values += f"{actions[i]}: {q}\n"
+    return values
+
+
 class TabularQLearner(RLAgent):
     """
     A simple Tabular Q-Learning agent.
@@ -217,7 +224,11 @@ class TabularQLearner(RLAgent):
             self.q_table = table
 
     def add_new_state(self, state: Any):
-        self.q_table[state] = [1. for _ in range(self.actions)]
+        # self.q_table[state] = [1. for _ in range(self.actions)]
+        self.q_table[state] = [0.]*self.actions
+
+    def get_all_q_values(self, state: Any):
+        return self.q_table[state]
 
     def best_action(self, state: Any):
         if state not in self.q_table:
@@ -488,8 +499,8 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
                  rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
-                 planning_steps: int = 8,
-                 priority_theta: float = 90,  # TODO Check that this is agood threshold
+                 planning_steps: int = 10,
+                 priority_theta: float = 85,  # TODO Check that this is agood threshold
                  **kwargs):
         self.pqueue = PriorityQueue()
         self.priority_theta = priority_theta
@@ -522,8 +533,9 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
                 priority = abs(back_reward + self.gamma*self.get_max_q(past_state) - self.get_q_value(back_state, back_action))
                 if priority > self.priority_theta:
                     self.pqueue.put((priority, back_state, back_action))
-        while not self.pqueue.empty():  # Empty out the queue at the end of the planning steps
-            self.pqueue.get()
+        # while not self.pqueue.empty():  # Empty out the queue at the end of the planning steps
+        #     self.pqueue.get()
+        self.pqueue.task_done()  # This should empty out the queue (hopefully)
 
     def agent_step(self, reward: float, state: Any) -> Any:
         """A step taken by the agent.

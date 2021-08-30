@@ -1,7 +1,7 @@
 from typing import Collection
 from unittest.case import skip
 from pddlgym.structs import Literal
-from ml.rl import TabularDynaQLearner, TabularPrioritisedQLearner, TabularQLearner
+from ml.rl import TabularDynaQLearner, TabularPrioritisedQLearner, TabularQLearner, print_q_values
 import ml.common
 from recognizer import Recognizer
 from pddlgym.core import PDDLEnv
@@ -36,7 +36,7 @@ class RecognizerTest(unittest.TestCase):
         print(f'Goal State for 0 = {env.problems[0].goal}')
         action = actions[policies[0].agent_step(0.0, env.problems[0].initial_state)]
         print(f'Action 0={policies[0].agent_step(0.0, env.problems[0].initial_state)}:{action}')
-        self.assertIn(action, find_actions(["putdown(c:block)", "unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
+        self.assertIn(action, find_actions(["stack(c:block,a:block)", "putdown(c:block)", "unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
         print(f'Initial State for 1 = {env.problems[1].initial_state}')
         print(f'Goal State for 1 = {env.problems[1].goal}')
         action = actions[policies[1].agent_step(0.0, env.problems[1].initial_state)]
@@ -62,7 +62,7 @@ class RecognizerTest(unittest.TestCase):
         # TODO Check that all of the problems here really do start with "stack(e,c)"
         action = actions[policies[0].agent_step(0.0, env.problems[0].initial_state)]
         print(f'Action 0={policies[0].agent_step(0.0, env.problems[0].initial_state)}:{action}')
-        self.assertIn(action, find_actions(["putdown(c:block)", "unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
+        self.assertIn(action, find_actions(["stack(c:block,a:block)", "putdown(c:block)", "unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
         action = actions[policies[1].agent_step(0.0, env.problems[1].initial_state)]
         print(f'Action 1={policies[1].agent_step(0.0, env.problems[1].initial_state)}:{action}')
         self.assertIn(action, find_actions(["unstack(d:block)", "pickup(b:block)", "pickup(a:block)"], actions))
