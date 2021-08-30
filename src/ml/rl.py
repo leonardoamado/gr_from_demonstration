@@ -535,7 +535,8 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
                     self.pqueue.put((priority, back_state, back_action))
         # while not self.pqueue.empty():  # Empty out the queue at the end of the planning steps
         #     self.pqueue.get()
-        self.pqueue.task_done()  # This should empty out the queue (hopefully)
+        # self.pqueue.task_done()  # This should empty out the queue (hopefully)
+        self.pqueue = PriorityQueue()
 
     def agent_step(self, reward: float, state: Any) -> Any:
         """A step taken by the agent.

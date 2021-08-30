@@ -8,14 +8,16 @@ import os
 
 from numpy.core.fromnumeric import mean
 
+
 def kl_divergence(p1, p2):
     return sum(p1[i] * log2(p1[i]/p2[i]) for i in range(len(p1)))
+
 
 def softmax(values):
     return [(exp(q))/sum([exp(_q) for _q in values]) for q in values]
 
 # def generic_kl_divergence_per_plan_state(trajectory, policy, epsilon=0., actions=24):
-    
+
 
 def kl_divergence_per_plan_state(trajectory, p1, p2, epsilon=0., actions=24):
     p1 = values_to_policy(p1, epsilon)
@@ -51,6 +53,7 @@ def values_to_distribution(values):
         policy[state] = softmax(values[state])
     return policy
 
+
 def kl_divergence_norm(traj, pol, actions, epsilon=0.):
     p = pol.q_table
     # kl divergence using epsilon-greedy policies
@@ -68,6 +71,7 @@ def kl_divergence_norm(traj, pol, actions, epsilon=0.):
         # print(f'Best action for traj and policy, state {i}: {np.argmax(qp1)} - {np.argmax(qp2)}')
         distances.append(kl_divergence(qp1, qp2))
     return mean(distances)
+
 
 def kl_divergence_norm_softmax(traj, pol, actions):
     # copy paste of kl divergence but with softmax
@@ -88,12 +92,12 @@ def kl_divergence_norm_softmax(traj, pol, actions):
         distances.append(kl_divergence(qp1, qp2))
     return mean(distances)
 
+
 def add_dummy_policy(policy, state, actions):
     # returns a dummy behavior in case a state has not been visited
     # when running a tabular policy
     n_actions = len(actions)
     policy[state] = [1./n_actions for _ in range(n_actions)]
-
 
 
 def add_dummy_q(policy, state, actions, epsilon=0.):
@@ -116,6 +120,7 @@ def traj_to_policy(traj, actions, epsilon=0.):
         trajectory_as_policy[tuple(state)] = qs
     return trajectory_as_policy
 
+
 def values_to_policy(policy, epsilon=0.):
     policy_table = {}
     for s in policy.keys():
@@ -124,6 +129,7 @@ def values_to_policy(policy, epsilon=0.):
         policy_table[s] = [1e-6 + epsilon/l for _ in range(l)]
         policy_table[s][np.argmax(q)] = 1. - 1e-6*(l-1) - epsilon
     return policy_table
+
 
 def plot_mean_divergence(goal, eps, *divs):
     # given a list of divergences, plot all as a bar plot.
