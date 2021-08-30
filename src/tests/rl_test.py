@@ -61,6 +61,7 @@ class RLAgentTest(unittest.TestCase):
         self.assertGreater(agent.get_q_value(initial_state, policy_index), 48.)
         print(print_q_values(agent.get_all_q_values(initial_state), actions))
 
+    # @skip
     def test_prioritised_dyna_q(self):
         random.seed(1)
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', True, False)

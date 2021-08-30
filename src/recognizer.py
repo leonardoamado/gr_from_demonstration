@@ -1,3 +1,4 @@
+from types import MethodType
 from typing import Any, Collection, List, Tuple
 from gym.core import Env
 from numpy import deg2rad
@@ -62,17 +63,11 @@ def remove_obs(instance, observability):
 
 
 class Recognizer:
-    def __init__(self, method=TabularQLearner, evaluation=m.kl_divergence_norm_softmax, training=None, recog=None):
+    def __init__(self, method: RLAgent = TabularQLearner,
+                 evaluation: MethodType = m.kl_divergence_norm_softmax  # This does not seem to be used
+                 ):
         self.method = method
         self.evaluate_goal = evaluation
-        if not training:
-            self.train_policies = self.train
-        else:
-            self.train_policies = training
-        if not recog:
-            self.recognize_process = self.recognize_goal
-        else:
-            self.recognize_process = recog
 
     '''
     Performs the entire process of goal recognition using the user assigned functions.
@@ -166,10 +161,10 @@ class Recognizer:
 
     @return a goal
     '''
-    def recognize_goal(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         divergences = []
         list_of_goals = []
-        for tup1 in obs:
+        for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
             for pred in tup1[0]:
                 pred._hash = hash(pred._str)
             tup1[1]._hash = hash(tup1[1]._str)
@@ -186,7 +181,7 @@ class Recognizer:
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
-    def train(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
+    def train_policies(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
         '''
         Train a policy for each one of the goals.
         @return a list of policies and and the possible actions of the environment
@@ -216,6 +211,38 @@ class Recognizer:
                     policies[-1] = self.method(env, init, problem=n, action_list=actions)
                     policy = policies[-1]
         return policies, actions
+
+
+class StateQmaxRecognizer(Recognizer):
+    """A Goal Recognition Process that uses only states as observations"""
+    def __init__(self, method: RLAgent = TabularQLearner):
+        super().__init__(method=method, evaluation=self.evaluate_goal)
+
+    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+        observation_Qs = []
+        list_of_goals = []
+        for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
+            for pred in tup1[0]:
+                pred._hash = hash(pred._str)
+            tup1[1]._hash = hash(tup1[1]._str)
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+            observation_q = self.evaluate_goal(obs, policies[n], actions)
+            observation_Qs.append(observation_q)
+        print(observation_Qs)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
+        div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
+        print('Most likely goal is:', goal, 'with metric value:', div)
+        print('Correct prediction:', goal == real_goal)
+        return goal == real_goal, goal, rankings
+
+    def evaluate_goal(self, obs: List[Tuple], policy: RLAgent, actions: Collection[Literal]) -> float:
+        obs_q = 0
+        for state, _ in obs:
+            obs_q += policy.get_max_q(state)
+        return obs_q
 
 
 def str_to_literal(string):
