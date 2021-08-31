@@ -125,6 +125,10 @@ def complete_obs(observations, path, name):
         new_obs.write(line)
     new_obs.close()
 
+def print_task(domain, problem):
+    problem = pyperplan._parse(domain, problem)
+    task = grounding.ground_no_goal(problem)
+    print(task)
 
 def gr_to_gym(d, output='output', obs_per=100):
     """
@@ -147,6 +151,7 @@ def gr_to_gym(d, output='output', obs_per=100):
     # parse the domain file, generating a task (grounded actions)
     problem = pyperplan._parse(d + "/domain.pddl", d + "/template.pddl")
     task = grounding.ground_no_goal(problem)
+
 
     # Setup directories, still needs some fixing here.
     Path(output + '/' + d).mkdir(parents=True, exist_ok=True)
@@ -193,12 +198,11 @@ def gr_to_gym_custom_obs(d, output='output'):
 
 
 def create_observabilities(d, output, ind=0):
-    print(output +'/'+ '/problems')
+    print(output + '/problems')
     print(d + "/domain.pddl")
     env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                   dynamic_action_space=DYNAMIC_ACTION_SPACE)
     planner = FD()
-    traj = []
     env.fix_problem_index(ind)
     init, _ = env.reset()
     print(init.goal)
@@ -221,6 +225,27 @@ def create_observabilities(d, output, ind=0):
         with open(output + '/' + 'obs' + str(obs) + '.pkl', "wb") as output_file:
             pickle.dump(traj_list[obs], output_file)
 
+def validated_gr_problem(d):
+    env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
+    planner = FD()
+    traj = []
+    n_goals = len(env.problems)
+    valid = True
+    for n in range(n_goals):
+        env.fix_problem_index(n)
+        init, _ = env.reset()
+        print(init.goal)
+        plan = planner(env.domain, init)
+        for a in plan:
+            state_action_pair = (solve_fset(init.literals), a)
+            traj.append(state_action_pair)
+            init, _, _, _ = env.step(a)
+        if len(plan) == 0:
+            valid = False
+        print('Goal', n, 'plan len:', len(plan))
+        print(plan)
+    return valid
 
 def save_obs(traj, out):
     new_obs = open(out, "w")
@@ -236,6 +261,9 @@ def save_obs(traj, out):
 
 
 if __name__ == "__main__":
-    create_observabilities('output/blocks_gr', 'output/blocks_gr')
+    #print_task('output/skgrid_gr/domain.pddl', 'output/skgrid_gr/problems/problem1.pddl')
+    domain = 'output/skgrid_gr10'
+    if (validated_gr_problem(domain)):
+        create_observabilities(domain, domain)
     # gr_to_gym_new('dummy_gr', 'output', 100)
     # TODO create a complete main here
