@@ -289,7 +289,15 @@ class ActionQmaxRecognizer(Recognizer):
                 print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
 
             # stateQs = [np.average([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
-            stateQs = [np.max([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
+            stateMaxQs = {policy: [0]+([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies}  # We need to have a zero here to ensure we have something in case there are no states
+            # stateMaxQs = {}
+            # for policy in policies:
+            #     if statesForAction[policy]:
+            #         stateMaxQs[policy] = [0]
+            #     else:
+            #         stateMaxQs[policy] = [policy.get_max_q(state) for state in statesForAction[policy]]
+            stateQs = [np.max(stateMaxQs[policy]) for policy in policies]
+            # stateQs = [np.max([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
             stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
             # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
             observation_Qs.append(stateQs)
