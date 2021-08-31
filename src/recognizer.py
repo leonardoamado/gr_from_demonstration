@@ -229,8 +229,19 @@ class StateQmaxRecognizer(Recognizer):
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-            observation_q = self.evaluate_goal(obs, policies[n], actions)
-            observation_Qs.append(observation_q)
+        # for n in range(n_goals):
+        #     env.fix_problem_index(n)
+        #     init, _ = env.reset()
+        #     list_of_goals.append(init.goal)
+        #     observation_q = self.evaluate_goal(obs, policies[n], actions)
+        #     observation_Qs.append(observation_q)
+        for state, _ in obs:
+            stateQs = [policy.get_max_q(state) for policy in policies]
+            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+            stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
+            observation_Qs.append(stateQs)
+        print(observation_Qs)
+        observation_Qs = np.sum(observation_Qs, axis=0)
         print(observation_Qs)
         rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
