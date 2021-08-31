@@ -116,6 +116,7 @@ class RLAgent:
         """
         pass
 
+    @abstractmethod
     def agent_end(self, reward: float) -> Any:
         """Called when the agent terminates.
 
@@ -134,6 +135,10 @@ class RLAgent:
            Returns:
                 The action prescribed for that state
         """
+        pass
+
+    @abstractmethod
+    def learn(self, forced_init: bool = True, init_threshold: int = 20):
         pass
 
 
@@ -330,7 +335,7 @@ class TabularQLearner(RLAgent):
             self.plan_optimistic_initialization(init)
         print('LEARNING FOR GOAL:', init.goal)
         print(f'Using {self.__class__.__name__}')
-        tq = tqdm(range(self.episodes), postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
+        tq = tqdm(range(self.episodes), postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
         for n in tq:
             self.step = n
             episode_r = 0
@@ -369,9 +374,9 @@ class TabularQLearner(RLAgent):
             if episode_r > max_r:
                 max_r = episode_r
                 # print("New all time high reward:", episode_r)
-                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
+                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
             if (n + 1) % 1000 == 0:
-                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.5f}. MaxR: {max_r}")
+                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
                 # print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {self.c_eps}')
                 if done_times <= 10:
                     patience += 1
