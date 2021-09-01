@@ -1,10 +1,10 @@
-from typing import Collection
+from typing import Collection, Tuple
 from unittest.case import skip
 from gym.core import Env
 from pddlgym.structs import Literal
 from ml.rl import TabularDynaQLearner, TabularPrioritisedQLearner, TabularQLearner, print_q_values
 import ml.common
-from recognizer import Recognizer, StateQmaxRecognizer
+from recognizer import ActionQmaxRecognizer, Recognizer, StateQmaxRecognizer
 from pddlgym.core import PDDLEnv
 from pddlgym_planners.fd import FD
 from utils import solve_fset, find_action, find_actions
@@ -82,37 +82,8 @@ class RecognizerTest(unittest.TestCase):
         recog = Recognizer(method=TabularPrioritisedQLearner)
         self.run_recognizer_in_env(env, recog)
 
-    @skip
-    def test_rl_algorithms_blocks(self):
-        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
-        for rlalgorithm in [TabularQLearner, TabularDynaQLearner, TabularPrioritisedQLearner]:
-            print(f"Testing Recognizer using {rlalgorithm}")
-            recog = Recognizer(method=rlalgorithm)
-            policies, actions = recog.train_policies(env)
-            planner = FD()
-            correct_goal_index = 1
-            env.fix_problem_index(correct_goal_index)
-            init, _ = env.reset()
-            plan = planner(env.domain, init)
-            traj = []
-            for a in plan:
-                state_action_pair = (solve_fset(init.literals), a)
-                traj.append(state_action_pair)
-                init, _, _, _ = env.step(a)
-            print(f"Observations are {traj}")
-            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
-            self.assertEqual(goal, correct_goal_index)
-            self.assertTrue(success)
-            self.assertIsNotNone(rankings)
-            print(rankings)
-            self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
-
-    def test_action_recognition_blocks(self):
-        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
-        recog = StateQmaxRecognizer()
-        policies, actions = recog.train_policies(env)
+    def generate_observations(self, env: PDDLEnv, correct_goal_index: int) -> Collection[Tuple]:
         planner = FD()
-        correct_goal_index = 1
         env.fix_problem_index(correct_goal_index)
         init, _ = env.reset()
         plan = planner(env.domain, init)
@@ -121,12 +92,52 @@ class RecognizerTest(unittest.TestCase):
             state_action_pair = (solve_fset(init.literals), a)
             traj.append(state_action_pair)
             init, _, _, _ = env.step(a)
+        return traj
+
+    @skip
+    def test_rl_algorithms_blocks(self):
+        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        for rlalgorithm in [TabularQLearner, TabularDynaQLearner, TabularPrioritisedQLearner]:
+            print(f"Testing Recognizer using {rlalgorithm}")
+            recog = Recognizer(method=rlalgorithm)
+            policies, actions = recog.train_policies(env)
+            correct_goal_index = 1
+            traj = self.generate_observations(env, correct_goal_index)
+            print(f"Observations are {traj}")
+            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+            self.assertEqual(goal, correct_goal_index)
+            self.assertTrue(success)
+            self.assertIsNotNone(rankings)
+            print(rankings)
+            self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
+
+    @skip
+    def test_action_recognition_blocks(self):
+        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        recog = StateQmaxRecognizer()
+        policies, actions = recog.train_policies(env)
+        correct_goal_index = 1
+        traj = self.generate_observations(env, correct_goal_index)
         print(f"Observations are {traj}")
         success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
         self.assertEqual(goal, correct_goal_index)
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
         print(rankings)
+        self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
+
+    def test_state_recognition_blocks(self):
+        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        recog = ActionQmaxRecognizer()
+        policies, actions = recog.train_policies(env)
+        correct_goal_index = 1
+        traj = self.generate_observations(env, correct_goal_index)
+        print(f"Observations are {traj}")
+        success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+        print(rankings)
+        self.assertEqual(goal, correct_goal_index)
+        self.assertTrue(success)
+        self.assertIsNotNone(rankings)
         self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
 

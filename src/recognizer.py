@@ -119,7 +119,7 @@ class Recognizer:
     which serves as a full observation trace.
     @return a goal
     '''
-    def recognize_goal_dummy(self, env: Env, policies, actions: RLAgent, obs: List, real_goal: int, n_goals: int = 3) -> int:
+    def recognize_goal_dummy(self, env: Env, policies: Collection[RLAgent], actions: RLAgent, obs: List, real_goal: int, n_goals: int = 3) -> int:
         planner = FD()
         traj = []
         divergences = []
@@ -161,7 +161,7 @@ class Recognizer:
 
     @return a goal
     '''
-    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+    def recognize_process(self, env: Env, policies: Collection[RLAgent], actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         divergences = []
         list_of_goals = []
         for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
@@ -181,7 +181,7 @@ class Recognizer:
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
-    def train_policies(self, env: Env, n_goals: int = 3) -> Tuple[RLAgent, Collection[Literal]]:
+    def train_policies(self, env: Env, n_goals: int = 3) -> Tuple[List[RLAgent], Collection[Literal]]:
         '''
         Train a policy for each one of the goals.
         @return a list of policies and and the possible actions of the environment
@@ -197,7 +197,7 @@ class Recognizer:
                 # get all literals in its grounded version
                 actions = list(env.action_space.all_ground_literals(init, valid_only=False))
             # build method to learn policy
-            policy = self.method(env, init, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
+            policy: RLAgent = self.method(env, init, problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE)
             policies.append(policy)
             done = False
             print(f"Training policy for goal {n}")
@@ -237,8 +237,69 @@ class StateQmaxRecognizer(Recognizer):
         #     observation_Qs.append(observation_q)
         for state, _ in obs:
             stateQs = [policy.get_max_q(state) for policy in policies]
-            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
-            stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
+            stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+            # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
+            observation_Qs.append(stateQs)
+        print(observation_Qs)
+        observation_Qs = np.sum(observation_Qs, axis=0)
+        print(observation_Qs)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
+        div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
+        print('Most likely goal is:', goal, 'with metric value:', div)
+        print('Correct prediction:', goal == real_goal)
+        return goal == real_goal, goal, rankings
+
+    def evaluate_goal(self, obs: List[Tuple], policy: RLAgent, actions: Collection[Literal]) -> float:
+        obs_q = 0
+        for state, _ in obs:
+            obs_q += policy.get_max_q(state)
+        return obs_q
+
+
+class ActionQmaxRecognizer(Recognizer):
+
+    """A Goal Recognition Process that uses only actions as observations"""
+    def __init__(self, method: RLAgent = TabularQLearner):
+        super().__init__(method=method, evaluation=self.evaluate_goal)
+
+    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+        observation_Qs = []
+        list_of_goals = []
+        for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
+            for pred in tup1[0]:
+                pred._hash = hash(pred._str)
+            tup1[1]._hash = hash(tup1[1]._str)
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+        # for n in range(n_goals):
+        #     env.fix_problem_index(n)
+        #     init, _ = env.reset()
+        #     list_of_goals.append(init.goal)
+        #     observation_q = self.evaluate_goal(obs, policies[n], actions)
+        #     observation_Qs.append(observation_q)
+        for _, action in obs:
+            action_index = actions.index(action)
+            statesForAction = {}
+            for policy in policies:
+                statesForAction[policy] = [state for state in policy.q_table.keys()
+                                           if policy.policy(state) == action_index]
+                print(f"States for action: {len(statesForAction[policy])}")
+                print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
+
+            # stateQs = [np.average([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
+            stateMaxQs = {policy: [0]+([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies}  # We need to have a zero here to ensure we have something in case there are no states
+            # stateMaxQs = {}
+            # for policy in policies:
+            #     if statesForAction[policy]:
+            #         stateMaxQs[policy] = [0]
+            #     else:
+            #         stateMaxQs[policy] = [policy.get_max_q(state) for state in statesForAction[policy]]
+            stateQs = [np.max(stateMaxQs[policy]) for policy in policies]
+            # stateQs = [np.max([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
+            stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+            # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
             observation_Qs.append(stateQs)
         print(observation_Qs)
         observation_Qs = np.sum(observation_Qs, axis=0)
