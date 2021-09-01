@@ -392,6 +392,11 @@ class TabularQLearner(RLAgent):
             self.goal_literals_achieved.clear()
 
 
+def run_training(agent: RLAgent):
+    """A helper function to run agent training when trying to train multiple agents in parallel"""
+    agent.learn()
+
+
 class TabularDynaQLearner(TabularQLearner):
     def __init__(self,
                  env: Env,

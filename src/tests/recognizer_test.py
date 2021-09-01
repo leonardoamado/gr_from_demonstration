@@ -126,6 +126,7 @@ class RecognizerTest(unittest.TestCase):
         print(rankings)
         self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
+    # @skip
     def test_state_recognition_blocks(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog = ActionQmaxRecognizer()
@@ -139,6 +140,18 @@ class RecognizerTest(unittest.TestCase):
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
         self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
+
+    @skip  # This does not work because of various dependencies
+    def test_parallel_training(self):
+        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        recog1 = Recognizer()
+        policies1, actions1 = recog1.train_policies(env)
+        recog2 = Recognizer()
+        policies2, actions2 = recog2.train_parallel(env)
+        self.assertEqual(actions1, actions2)
+        for i, policy in enumerate(policies1):
+            initial_state, _ = solve_fset(env.problems[i].reset())
+            self.assertEqual(policy.policy(initial_state), policies2[i].policy(initial_state))
 
 
 if __name__ == "__main__":

@@ -20,9 +20,12 @@ from pddlgym.core import InvalidAction, PDDLEnv
 from pddlgym.structs import Literal
 import random
 import pickle
+# import multiprocessing as mp  # To train policies in parallel
+from multiprocessing import Pool
+# from pathos.pools import ParallelPool as Pool
+import copy
 sys.path.append(os.path.abspath(os.path.join('..')))
 from pddlgym_planners.fd import FD
-
 
 """
 This is a copy of the train.py file with a few adjustments to Gabriel's code.
@@ -210,6 +213,28 @@ class Recognizer:
                     init, _ = env.reset()
                     policies[-1] = self.method(env, init, problem=n, action_list=actions)
                     policy = policies[-1]
+        return policies, actions
+
+    def train_parallel(self, env: Env, n_goals: int = 3) -> Tuple[List[RLAgent], Collection[Literal]]:
+        actions = None
+        starting_problem_index = 0
+        envs: List[Env] = [copy.deepcopy(env) for i in range(n_goals)]
+        for n in range(n_goals):
+            envs[n].fix_problem_index(n)
+        policies: List[RLAgent] = [self.method(env, env.reset()[0], problem=n, action_list=actions, valid_only=DYNAMIC_ACTION_SPACE) for n, env in enumerate(envs)]
+        print(f"Training policies in parallel for {n_goals} goals")
+        pool = Pool(n_goals)
+        # pool.map(lambda policy: policy.learn(), policies)
+        pool.map(run_training, policies)
+        # processes = [mp.Process(target=policy.learn) for policy in policies]
+        # for process in processes:
+        #     print("Starting process")
+        #     process.start()
+        # print("Started all processes")
+        # for process in processes:
+        #     process.join()
+        print(f"Finished training {n_goals} policies")
+
         return policies, actions
 
 
