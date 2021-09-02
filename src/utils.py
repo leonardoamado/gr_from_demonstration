@@ -1,6 +1,7 @@
 from typing import Collection
 from pddlgym.core import InvalidAction, PDDLEnv
 from pddlgym.structs import Literal
+from copy import deepcopy
 
 RAISE_ERROR_ON_VALID = False
 DYNAMIC_ACTION_SPACE = True
@@ -28,6 +29,23 @@ def solve_fset(fset):
     Converts a fronzenset to an ordered tuple.
     '''
     return tuple(sorted(tuple(fset)))
+
+def rebuild_qtable(qtable):
+    '''
+    Rebuilds a Q-table recalculating hash to avoid issues with dill
+    It is expected that the key is a tuple() of Literal
+    '''
+    new_table = dict()
+    for key in qtable.keys():
+        newkey = []
+        value = qtable[key]
+        for element in key:
+            newele = deepcopy(element)
+            newele._hash = hash(newele._str)
+            newkey.append(newele)
+        newkey = tuple(newkey)
+        new_table[newkey] = value
+    return new_table
 
 
 if __name__ == "__main__":

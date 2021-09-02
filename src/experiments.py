@@ -33,7 +33,7 @@ class Experiment:
         pass
 
 
-def run_experiments():
+def run_experiments(train=True):
     recog = StateQmaxRecognizer()
     blocks_results = dict()
     for obs in OBS:
@@ -44,8 +44,10 @@ def run_experiments():
         results is a list of tuples r_OBS
         r_n = [boolean, goal, rankings]
         '''
-        results = recog.complete_recognition_folder(folder, OBS)
-        # results = [[True, 1, 100],[False, 1, 100],[True, 1, 100],[True, 1, 100],[True, 1, 100]]
+        if train:
+            results = recog.complete_recognition_folder(folder, OBS)
+        else:
+            results = recog.only_recognition_folder(folder, OBS)
         for r, obs in zip(results, OBS):
             blocks_results[str(obs)].append(int(r[0]))
             blocks_results['full'].append(int(r[0]))
@@ -59,4 +61,4 @@ def run_experiments():
 
 
 if __name__ == "__main__":
-    run_experiments()
+    run_experiments(False)

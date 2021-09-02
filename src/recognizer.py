@@ -14,7 +14,7 @@ import dill
 import numpy as np
 import argparse
 from pddlgym.core import InvalidAction, PDDLEnv
-from utils import solve_fset
+from utils import solve_fset, rebuild_qtable
 import pddlgym
 from pddlgym.core import InvalidAction, PDDLEnv
 from pddlgym.structs import Literal
@@ -109,6 +109,29 @@ class Recognizer:
             dill.dump(policies, file)
         with open(folder + 'actions.pkl', 'wb') as file:
             dill.dump(actions, file)
+        result_list = []
+        for trace in obs_traces:
+            correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
+            result_list.append((correct, goal, rankings))
+        return result_list
+    
+    def only_recognition_folder(self, folder, observations=[0.1, 0.3, 0.5, 0.7, 1.0]):
+        print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
+        env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                      dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        obs_traces = []
+        n_goals = len(env.problems)
+        real_goal = self.load_correct_goal(folder + 'real_hypn.dat')
+        for obs in observations:
+            with open(folder + 'obs' + str(obs) + '.pkl', "rb") as input_file:
+                obs_traces.append(pickle.load(input_file))
+
+        with open(folder + 'policies.pkl', 'rb') as file:
+            policies = dill.load(file)
+        with open(folder + 'actions.pkl', 'rb') as file:
+            actions = dill.load(file)
+        for policy in policies:
+            policy.q_table = rebuild_qtable(policy.q_table)
         result_list = []
         for trace in obs_traces:
             correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
@@ -392,4 +415,4 @@ if __name__ == "__main__":
         recog.recognize_goal_dummy(env, policies, actions, None, None)
     if args.t == 'foldern':
         recog = Recognizer()
-        recog.complete_recognition_folder('output/blocks_gr/')
+        recog.only_recognition_folder('output/blocks_gr/')
