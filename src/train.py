@@ -9,7 +9,7 @@ import time
 import numpy as np
 import pddlgym
 from matplotlib import pyplot as plt
-import ml.metrics as m
+import ml.metrics as metrics
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join('.')))
@@ -105,7 +105,7 @@ for n in range(n_goals):
         # pretty bad implementation of a plot, but w.e.
         divergences = []
         for i in range(n_goals):
-            divergence = m.kl_divergence_norm_softmax(traj, policies[i].q_table, actions, epsilon=eps)
+            divergence = metrics.kl_divergence_norm_softmax(traj, policies[i].q_table, actions, epsilon=eps)
             divergences.append(divergence)
         # d1 = m.kl_divergence_norm(traj, policies[0].q_table, actions, epsilon=eps)
         # d2 = m.kl_divergence_norm(traj, policies[1].q_table, actions, epsilon=eps)
@@ -119,4 +119,4 @@ for n in range(n_goals):
         #     ds[f'p{n}'] = []
         # ds[f'p{n}'].append([d1, d2, d3, d4])
         # m.plot_mean_divergence(n, eps, d1, d2, d3, d4)
-        m.plot_mean_divergence(n, eps, divergences)
+        metrics.plot_mean_divergence(n, eps, divergences)

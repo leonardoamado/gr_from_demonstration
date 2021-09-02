@@ -1,6 +1,6 @@
 from abc import abstractmethod
 import pickle
-from typing import Any, Collection, NoReturn, overload
+from typing import Any, Collection, List, NoReturn, overload
 from gym.core import Env
 import numpy as np
 import random
@@ -16,8 +16,11 @@ from ml.common_functions import check_for_partial_goals
 from utils import solve_fset
 from pddlgym_planners.fd import FD
 from tqdm import tqdm
-
+from math import log2, exp
 from queue import PriorityQueue
+
+# This are for typing (we may want to move this elsewhere)
+State = Any
 
 # This will be an implementation of Q-Learning with Gym
 
@@ -61,6 +64,18 @@ from queue import PriorityQueue
 #   1, -1, -10
 
 
+def softmax(values: np.array) -> np.array:
+    """Computes softmax probabilities for an array of values
+
+    Args:
+        values (np.array): Input values for which to compute softmax
+
+    Returns:
+        np.array: softmax probabilities
+    """
+    return [(exp(q))/sum([exp(_q) for _q in values]) for q in values]
+
+
 class RLAgent:
     """
     This is a base class used as parent class for any
@@ -92,7 +107,7 @@ class RLAgent:
             self.env.fix_problem_index(problem)
 
     @abstractmethod
-    def agent_start(self, state: Any) -> Any:
+    def agent_start(self, state: State) -> Any:
         """The first method called when the experiment starts,
         called after the environment starts.
         Args:
@@ -104,7 +119,7 @@ class RLAgent:
         pass
 
     @abstractmethod
-    def agent_step(self, reward: float, state: Any) -> Any:
+    def agent_step(self, reward: float, state: State) -> Any:
         """A step taken by the agent.
         Args:
             reward (float): the reward received for taking the last action taken
@@ -127,7 +142,7 @@ class RLAgent:
         pass
 
     @abstractmethod
-    def policy(self, state: Any) -> Any:
+    def policy(self, state: State) -> Any:
         """The action for the specified state under the currently learned policy
            (unlike agent_step, this does not update the policy using state as a sample.
            Args:
@@ -138,8 +153,34 @@ class RLAgent:
         pass
 
     @abstractmethod
+    def softmax_policy(self, state: State) -> np.array:
+        """Returns a softmax policy over the q-value returns stored in the q-table
+
+        Args:
+            state (State): the state for which we want a softmax policy
+
+        Returns:
+            np.array: probability of taking each action in self.actions given a state
+        """
+        pass
+
+    @abstractmethod
     def learn(self, forced_init: bool = True, init_threshold: int = 20):
         pass
+
+    def __getitem__(self, state: State) -> Any:
+        """[summary]
+
+        Args:
+            state (Any): The state for which we want to get the policy
+
+        Raises:
+            InvalidAction: [description]
+
+        Returns:
+            Any: [description]
+        """""
+        return self.softmax_policy(state)
 
 
 def print_q_values(q_values: Collection[int], actions: Collection[Literal]):
@@ -203,16 +244,48 @@ class TabularQLearner(RLAgent):
         self.last_state = None
         self.last_action = None
 
-    def policy(self, state: Any) -> Any:
+    def states_in_q(self) -> List:
+        """Returns the states stored in the q_values table
+
+        Returns:
+            List: The states for which we have a mapping in the q-table
+        """
+        return self.q_table.keys()
+
+    def policy(self, state: State) -> Any:
+        """Returns the greedy deterministic policy for the specified state
+
+        Args:
+            state (State): the state for which we want the action
+
+        Raises:
+            InvalidAction: Not sure about this one
+
+        Returns:
+            Any: The greedy action learned for state
+        """
         return self.best_action(state)
 
-    def epsilon_greedy_policy(self, state: Any) -> Any:
+    def epsilon_greedy_policy(self, state: State) -> Any:
         eps = self.eps()
         if self._random.random() <= eps:
             action = self._random.randint(0, self.actions-1)
         else:
             action = self.policy(state)
         return action
+
+    def softmax_policy(self, state: State) -> np.array:
+        """Returns a softmax policy over the q-value returns stored in the q-table
+
+        Args:
+            state (State): the state for which we want a softmax policy
+
+        Returns:
+            np.array: probability of taking each action in self.actions given a state
+        """
+        if state not in self.q_table:
+            self.add_new_state(state)
+        return softmax(self.q_table[state])
 
     def save_q_table(self, path: str):
         # sadly, this does not work, because the state we are using
@@ -228,35 +301,35 @@ class TabularQLearner(RLAgent):
             table = pickle.load(path)
             self.q_table = table
 
-    def add_new_state(self, state: Any):
+    def add_new_state(self, state: State):
         # self.q_table[state] = [1. for _ in range(self.actions)]
         self.q_table[state] = [0.]*self.actions
 
-    def get_all_q_values(self, state: Any):
+    def get_all_q_values(self, state: State):
         return self.q_table[state]
 
-    def best_action(self, state: Any):
+    def best_action(self, state: State):
         if state not in self.q_table:
             self.add_new_state(state)
             # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
 
-    def get_max_q(self, state: Any):
+    def get_max_q(self, state: State):
         if state not in self.q_table:
             self.add_new_state(state)
         return np.max(self.q_table[state])
 
-    def set_q_value(self, state: Any, action: Any, q_value: float):
+    def set_q_value(self, state: State, action: Any, q_value: float):
         if state not in self.q_table:
             self.add_new_state(state)
         self.q_table[state][action] = q_value
 
-    def get_q_value(self, state: Any, action: Any) -> float:
+    def get_q_value(self, state: State, action: Any) -> float:
         if state not in self.q_table:
             self.add_new_state(state)
         return self.q_table[state][action]
 
-    def agent_start(self, state: Any) -> Any:
+    def agent_start(self, state: State) -> Any:
         """The first method called when the experiment starts,
         called after the environment starts.
         Args:
@@ -269,7 +342,7 @@ class TabularQLearner(RLAgent):
         self.last_action = self.policy(state)
         return self.last_action
 
-    def agent_step(self, reward: float, state: Any) -> Any:
+    def agent_step(self, reward: float, state: State) -> Any:
         """A step taken by the agent.
 
         Args:
@@ -419,7 +492,7 @@ class TabularDynaQLearner(TabularQLearner):
 
         super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
 
-    def update_model(self, past_state, past_action, state, reward):
+    def update_model(self, past_state: State, past_action, state: State, reward: float):
         if past_state not in self.model:
             self.model[past_state] = {}
         self.model[past_state][past_action] = (state, reward)
@@ -436,7 +509,7 @@ class TabularDynaQLearner(TabularQLearner):
             new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
             self.set_q_value(past_state, past_action, new_q)
 
-    def agent_start(self, state: Any) -> Any:
+    def agent_start(self, state: State) -> Any:
         """The first method called when the experiment starts,
         called after the environment starts.
         Args:
@@ -449,7 +522,7 @@ class TabularDynaQLearner(TabularQLearner):
         self.last_action = self.policy(state)
         return self.last_action
 
-    def agent_step(self, reward: float, state: Any) -> Any:
+    def agent_step(self, reward: float, state: State) -> Any:
         """A step taken by the agent.
 
         Args:
@@ -518,7 +591,7 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
 
         super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, planning_steps=planning_steps, **kwargs)
 
-    def update_model(self, past_state, past_action, state, reward):
+    def update_model(self, past_state: State, past_action, state: State, reward: float):
         if past_state not in self.model:
             self.model[past_state] = {}
         if state not in self.inverse_model:
@@ -548,7 +621,7 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
         # self.pqueue.task_done()  # This should empty out the queue (hopefully)
         self.pqueue = PriorityQueue()
 
-    def agent_step(self, reward: float, state: Any) -> Any:
+    def agent_step(self, reward: float, state: State) -> Any:
         """A step taken by the agent.
 
         Args:

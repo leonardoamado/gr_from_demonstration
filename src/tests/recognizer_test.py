@@ -8,6 +8,7 @@ from recognizer import ActionQmaxRecognizer, Recognizer, StateQmaxRecognizer
 from pddlgym.core import PDDLEnv
 from pddlgym_planners.fd import FD
 from utils import solve_fset, find_action, find_actions
+from ml.metrics import kl_divergence_norm_softmax, divergence_point, soft_divergence_point
 import numpy as np
 
 import unittest
@@ -22,7 +23,7 @@ class RecognizerTest(unittest.TestCase):
     def setUp(self):
         print("Unit tests for the recognizer")
 
-    def run_recognizer_in_env(self, env: Env, recog: Recognizer):
+    def train_recognizer_in_blocks_env(self, env: Env, recog: Recognizer):
         policies, actions = recog.train_policies(env)
         # Basic sanity check
         self.assertIsNotNone(policies)
@@ -60,27 +61,28 @@ class RecognizerTest(unittest.TestCase):
         print(print_q_values(policies[2].get_all_q_values(initial_state), actions))
         self.assertIn(action, find_actions(["pickup(a:block)"], actions))
         print(actions)
+        return policies, actions
 
     @skip
     def test_q_policy_learning(self):
         print("****  Testing Learning using TabularQLearning  ****")
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
         recog = Recognizer()
-        self.run_recognizer_in_env(env, recog)
+        self.train_recognizer_in_blocks_env(env, recog)
 
     @skip  # This does not seem to do much better than TabularQLearning
     def test_dynaq_policy_learning(self):
         print("****  Testing Learning using TabularDynaQLearning  ****")
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
         recog = Recognizer(method=TabularDynaQLearner)
-        self.run_recognizer_in_env(env, recog)
+        self.train_recognizer_in_blocks_env(env, recog)
 
     @skip
     def test_priority_policy_learning(self):
         print("****  Testing Learning using TabularPrioritisedQLearner  ****")
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=False)
         recog = Recognizer(method=TabularPrioritisedQLearner)
-        self.run_recognizer_in_env(env, recog)
+        self.train_recognizer_in_blocks_env(env, recog)
 
     def generate_observations(self, env: PDDLEnv, correct_goal_index: int) -> Collection[Tuple]:
         planner = FD()
@@ -95,10 +97,10 @@ class RecognizerTest(unittest.TestCase):
         return traj
 
     @skip
-    def test_rl_algorithms_blocks(self):
+    def test_state_action_recognizer_rl_algorithms_blocks(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         for rlalgorithm in [TabularQLearner, TabularDynaQLearner, TabularPrioritisedQLearner]:
-            print(f"Testing Recognizer using {rlalgorithm}")
+            print(f"Testing Recognizer using {rlalgorithm} training")
             recog = Recognizer(method=rlalgorithm)
             policies, actions = recog.train_policies(env)
             correct_goal_index = 1
@@ -110,6 +112,24 @@ class RecognizerTest(unittest.TestCase):
             self.assertIsNotNone(rankings)
             print(rankings)
             self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
+
+    def test_state_action_recognizer_evaluation(self):
+        env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
+        training_recognizer = Recognizer()
+        policies, actions = training_recognizer.train_policies(env)
+        for evaluation in [kl_divergence_norm_softmax, soft_divergence_point, divergence_point]:
+            print(f"Testing Recognizer using {evaluation} evaluation")
+            recog = Recognizer(evaluation=evaluation)
+            correct_goal_index = 1
+            traj = self.generate_observations(env, correct_goal_index)
+            print(f"Observations are {traj}")
+            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+            self.assertEqual(goal, correct_goal_index)
+            self.assertTrue(success)
+            self.assertIsNotNone(rankings)
+            print(rankings)
+            self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
+
 
     @skip
     def test_action_recognition_blocks(self):
@@ -126,7 +146,7 @@ class RecognizerTest(unittest.TestCase):
         print(rankings)
         self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
-    # @skip
+    @skip
     def test_state_recognition_blocks(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog = ActionQmaxRecognizer()

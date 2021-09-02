@@ -7,7 +7,7 @@ from ml.dqn import DQN
 import json
 import time
 from matplotlib import pyplot as plt
-import ml.metrics as m
+import ml.metrics as metrics
 import sys
 import os
 import dill
@@ -66,9 +66,17 @@ def remove_obs(instance, observability):
 
 
 class Recognizer:
+
     def __init__(self, method: RLAgent = TabularQLearner,
-                 evaluation: MethodType = m.kl_divergence_norm_softmax  # This does not seem to be used
+                 evaluation: MethodType = metrics.kl_divergence_norm_softmax  # This does not seem to be used
                  ):
+        """Initializes a recognizer
+
+        Args:
+            method (RLAgent, optional): Which RL method we are using to train the agents (and derive policies). Defaults to TabularQLearner.
+            evaluation (MethodType, optional): The actual method to evaluate a policy against a trajectory. Note the signature must be: evaluation(traj: List[Tuple[State, Any]], pol: RLAgent, actions: List[Literal])
+            . Defaults to m.kl_divergence_norm_softmax
+        """
         self.method = method
         self.evaluate_goal = evaluation
 
@@ -114,7 +122,7 @@ class Recognizer:
             correct, goal, rankings = self.recognize_process(env, policies, actions, tuple(trace), real_goal, n_goals)
             result_list.append((correct, goal, rankings))
         return result_list
-    
+
     def only_recognition_folder(self, folder, observations=[0.1, 0.3, 0.5, 0.7, 1.0]):
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
         env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
@@ -171,7 +179,8 @@ class Recognizer:
             divergences.append(divergence)
         print(divergences)
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
-        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
+        print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
+
         return goal
 
     '''
@@ -203,7 +212,7 @@ class Recognizer:
         print(divergences)
         rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
-        print('Most likely goal is:', goal, 'with metric value (standard is KL_divergence):', div)
+        print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
@@ -293,7 +302,7 @@ class StateQmaxRecognizer(Recognizer):
         print(observation_Qs)
         rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
-        print('Most likely goal is:', goal, 'with metric value:', div)
+        print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
@@ -333,8 +342,8 @@ class ActionQmaxRecognizer(Recognizer):
             for policy in policies:
                 statesForAction[policy] = [state for state in policy.q_table.keys()
                                            if policy.policy(state) == action_index]
-                print(f"States for action: {len(statesForAction[policy])}")
-                print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
+                # print(f"States for action: {len(statesForAction[policy])}")
+                # print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
 
             # stateQs = [np.average([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
             stateMaxQs = {policy: [0]+([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies}  # We need to have a zero here to ensure we have something in case there are no states
@@ -354,7 +363,7 @@ class ActionQmaxRecognizer(Recognizer):
         print(observation_Qs)
         rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
-        print('Most likely goal is:', goal, 'with metric value:', div)
+        print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
