@@ -1,4 +1,5 @@
 from recognizer import Recognizer, StateQmaxRecognizer
+from ml.metrics import *
 #from tqdm import tqdm
 
 # Define datasets here
@@ -32,9 +33,23 @@ class Experiment:
     def compute_stats(self):
         pass
 
+def check_draw(ranking):
+    return ranking[0][1] == ranking[1][1]
 
-def run_experiments(train=True):
-    recog = StateQmaxRecognizer()
+def check_spread(ranking):
+    head = ranking[0]
+    tail = ranking[1:]
+    spread = 1
+    for goal_value in tail:
+        if goal_value[1] == head[1]:
+            spread += 1
+        else:
+            break
+    return spread
+
+
+def run_experiments(train=True, even_punish=False):
+    recog = Recognizer(evaluation=soft_divergence_point)
     blocks_results = dict()
     for obs in OBS:
         blocks_results[str(obs)] = []
@@ -49,8 +64,14 @@ def run_experiments(train=True):
         else:
             results = recog.only_recognition_folder(folder, OBS)
         for r, obs in zip(results, OBS):
-            blocks_results[str(obs)].append(int(r[0]))
-            blocks_results['full'].append(int(r[0]))
+            prediction = r[0]
+            if r[0] and even_punish:
+                prediction = 1/check_spread(r[-1])
+                #prediction = not check_draw(r[-1])
+                 
+
+            blocks_results[str(obs)].append(float(prediction))
+            blocks_results['full'].append(float(prediction))
     print('Blocks results')
     # Print results
     for obs in OBS:
@@ -61,4 +82,4 @@ def run_experiments(train=True):
 
 
 if __name__ == "__main__":
-    run_experiments(False)
+    run_experiments(False, True)
