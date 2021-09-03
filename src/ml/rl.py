@@ -64,9 +64,9 @@ State = Any
 #   1, -1, -10
 
 
-def softmax(values: np.array) -> np.array:
+def softmax(values: List[float]) -> List[float]:
     """Computes softmax probabilities for an array of values
-
+    TODO We should probably use numpy arrays here
     Args:
         values (np.array): Input values for which to compute softmax
 
@@ -285,6 +285,8 @@ class TabularQLearner(RLAgent):
         """
         if state not in self.q_table:
             self.add_new_state(state)
+            # If we query a state we have not visited, return a uniform distribution
+            # return softmax([0]*self.actions)
         return softmax(self.q_table[state])
 
     def save_q_table(self, path: str):
@@ -305,16 +307,19 @@ class TabularQLearner(RLAgent):
         # self.q_table[state] = [1. for _ in range(self.actions)]
         self.q_table[state] = [0.]*self.actions
 
-    def get_all_q_values(self, state: State):
-        return self.q_table[state]
+    def get_all_q_values(self, state: State) -> List[float]:
+        if state in self.q_table:
+            return self.q_table[state]
+        else:
+            return [0.]*self.actions
 
-    def best_action(self, state: State):
+    def best_action(self, state: State) -> int:
         if state not in self.q_table:
             self.add_new_state(state)
             # self.q_table[state] = [0 for _ in range(self.actions)]
         return np.argmax(self.q_table[state])
 
-    def get_max_q(self, state: State):
+    def get_max_q(self, state: State) -> float:
         if state not in self.q_table:
             self.add_new_state(state)
         return np.max(self.q_table[state])
@@ -329,7 +334,7 @@ class TabularQLearner(RLAgent):
             self.add_new_state(state)
         return self.q_table[state][action]
 
-    def agent_start(self, state: State) -> Any:
+    def agent_start(self, state: State) -> int:
         """The first method called when the experiment starts,
         called after the environment starts.
         Args:
@@ -342,7 +347,7 @@ class TabularQLearner(RLAgent):
         self.last_action = self.policy(state)
         return self.last_action
 
-    def agent_step(self, reward: float, state: State) -> Any:
+    def agent_step(self, reward: float, state: State) -> int:
         """A step taken by the agent.
 
         Args:

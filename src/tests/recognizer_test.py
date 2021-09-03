@@ -8,7 +8,7 @@ from recognizer import ActionQmaxRecognizer, Recognizer, StateQmaxRecognizer
 from pddlgym.core import PDDLEnv
 from pddlgym_planners.fd import FD
 from utils import solve_fset, find_action, find_actions
-from ml.metrics import kl_divergence_norm_softmax, divergence_point, soft_divergence_point
+from ml.metrics import kl_divergence_norm_softmax, divergence_point, soft_divergence_point, trajectory_q_value
 import numpy as np
 
 import unittest
@@ -117,7 +117,9 @@ class RecognizerTest(unittest.TestCase):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         training_recognizer = Recognizer()
         policies, actions = training_recognizer.train_policies(env)
-        for evaluation in [kl_divergence_norm_softmax, soft_divergence_point, divergence_point]:
+        for evaluation in [kl_divergence_norm_softmax, trajectory_q_value, soft_divergence_point  # , 
+                           # divergence_point  # divergence point is not brilliant
+                           ]:
             print(f"Testing Recognizer using {evaluation} evaluation")
             recog = Recognizer(evaluation=evaluation)
             correct_goal_index = 1
@@ -129,7 +131,6 @@ class RecognizerTest(unittest.TestCase):
             self.assertIsNotNone(rankings)
             print(rankings)
             self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
-
 
     @skip
     def test_action_recognition_blocks(self):
