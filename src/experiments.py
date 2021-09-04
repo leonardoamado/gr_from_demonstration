@@ -1,4 +1,4 @@
-from recognizer import Recognizer, StateQmaxRecognizer
+from recognizer import Recognizer, StateQmaxRecognizer, ActionQmaxRecognizer
 from ml.metrics import *
 #from tqdm import tqdm
 
@@ -81,5 +81,63 @@ def run_experiments(train=True, even_punish=False):
     print('Average accuracy: ', avg_full)
 
 
+def run_experiments_domain(recog, domain,train=True, even_punish=False):
+    #recog = Recognizer(evaluation=soft_divergence_point)
+    domain_results = dict()
+    for obs in OBS:
+        domain_results[str(obs)] = []
+    domain_results['full'] = []
+    for folder in domain:
+        '''
+        results is a list of tuples r_OBS
+        r_n = [boolean, goal, rankings]
+        '''
+        if train:
+            results = recog.complete_recognition_folder(folder, OBS)
+        else:
+            results = recog.only_recognition_folder(folder, OBS)
+        for r, obs in zip(results, OBS):
+            prediction = r[0]
+            if r[0] and even_punish:
+                prediction = 1/check_spread(r[-1])
+                #prediction = not check_draw(r[-1])
+                 
+
+            domain_results[str(obs)].append(float(prediction))
+            domain_results['full'].append(float(prediction))
+    return domain_results
+
+def run_all_domains(train=True, recog=Recognizer()):
+    blocks = run_experiments_domain(recog,BLOCKS,train,True)
+    hanoi = run_experiments_domain(recog,HANOI,train,True)
+    skgrid = run_experiments_domain(recog,SKGRID,train,True)
+
+    print('Blocks results')
+    # Print results
+    for obs in OBS:
+        avg = sum(blocks[str(obs)]) / len(blocks[str(obs)])
+        print('OBS:', obs, 'Precision:', avg)
+    avg_full = sum(blocks['full']) / len(blocks['full'])
+    print('Average precision: ', avg_full)
+
+    print('Hanoi results')
+    # Print results
+    for obs in OBS:
+        avg = sum(hanoi[str(obs)]) / len(hanoi[str(obs)])
+        print('OBS:', obs, 'Precision:', avg)
+    avg_full = sum(hanoi['full']) / len(hanoi['full'])
+    print('Average precision: ', avg_full)
+
+    print('SkGrid results')
+    # Print results
+    for obs in OBS:
+        avg = sum(skgrid[str(obs)]) / len(skgrid[str(obs)])
+        print('OBS:', obs, 'Precision:', avg)
+    avg_full = sum(skgrid['full']) / len(skgrid['full'])
+    print('Average precision: ', avg_full)
+
+
 if __name__ == "__main__":
-    run_experiments(False, True)
+    #run_experiments(False, True)
+    run_all_domains(train=False, recog=Recognizer())
+    
