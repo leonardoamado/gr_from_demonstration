@@ -300,7 +300,7 @@ class StateQmaxRecognizer(Recognizer):
         print(observation_Qs)
         observation_Qs = np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0], reverse=True)
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
@@ -361,7 +361,7 @@ class ActionQmaxRecognizer(Recognizer):
         print(observation_Qs)
         observation_Qs = np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0])
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0], reverse=True)
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
@@ -423,5 +423,5 @@ if __name__ == "__main__":
         n_goals = 3
         recog.recognize_goal_dummy(env, policies, actions, None, None)
     if args.t == 'foldern':
-        recog = Recognizer()
-        recog.only_recognition_folder('output/blocks_gr/')
+        recog = Recognizer(evaluation=metrics.soft_divergence_point)
+        recog.complete_recognition_folder('output/blocks_gr/')

@@ -107,6 +107,111 @@ def run_experiments_domain(recog, domain,train=True, even_punish=False):
             domain_results['full'].append(float(prediction))
     return domain_results
 
+def measure_confusion(r_output):
+    prediction = r_output[0]
+    ranking = r_output[-1]
+
+    head = ranking[0]
+    tail = ranking[1:]
+    fn = int(not prediction)
+    fp = 0
+    tn = 0
+    if prediction:       
+        for goal_value in tail:
+            if goal_value[1] == head[1]:
+                fp += 1
+            else:
+                tn += 1    
+    else:
+        fp = 1
+        for goal_value in tail[:-1]:
+            if goal_value[1] == head[1]:
+                fp += 1
+            else:
+                tn += 1
+        
+    #      tp               fn                   fp  tn       
+    return int(prediction), fn, fp, tn
+
+def run_experiments_domain_all_metrics(recog, domain,train=True):
+    #recog = Recognizer(evaluation=soft_divergence_point)
+    domain_results = dict()
+    for obs in OBS:
+        domain_results[str(obs)] = dict()
+    domain_results['full'] = dict()
+    for key in domain_results:
+        domain_results[key]['TP'] = 0
+        domain_results[key]['FP'] = 0
+        domain_results[key]['FN'] = 0
+        domain_results[key]['TN'] = 0
+        domain_results[key]['len'] = 0
+    for folder in domain:
+        '''
+        results is a list of tuples r_OBS
+        r_n = [boolean, goal, rankings]
+        '''
+        if train:
+            results = recog.complete_recognition_folder(folder, OBS)
+        else:
+            results = recog.only_recognition_folder(folder, OBS)
+        for r, obs in zip(results, OBS):
+            tp,fn,fp,tn = measure_confusion(r)       
+            domain_results[str(obs)]['TP'] += tp
+            domain_results[str(obs)]['FP'] += fp
+            domain_results[str(obs)]['FN'] += fn
+            domain_results[str(obs)]['TN'] += tn
+            domain_results[str(obs)]['len'] += 4
+            domain_results['full']['TP'] += tp
+            domain_results['full']['FP'] += fp
+            domain_results['full']['FN'] += fn
+            domain_results['full']['TN'] += tn
+            domain_results['full']['len'] += 4
+
+    return domain_results
+
+def calculate_all_metrics(obs_metrics):
+    accuracy = 0
+    precision = 0
+    recall = 0
+    fscore = 0
+    accuracy = (obs_metrics['TP'] + obs_metrics['TN'])/ obs_metrics['len']
+    precision = obs_metrics['TP'] / (obs_metrics['TP'] + obs_metrics['FP'])
+    recall = obs_metrics['TP'] / (obs_metrics['TP'] + obs_metrics['FN'])
+    fscore = (2 * precision * recall) / (precision + recall)
+    return accuracy, precision, recall, fscore
+    
+
+
+def run_all_domains_metrics(train=True, recog=Recognizer()):
+    blocks = run_experiments_domain_all_metrics(recog,BLOCKS,train)
+    hanoi = run_experiments_domain_all_metrics(recog,HANOI,train)
+    skgrid = run_experiments_domain_all_metrics(recog,SKGRID,train)
+    
+
+    print('Blocks results')
+    for obs in OBS:
+        accuracy, precision, recall, fscore = calculate_all_metrics(blocks[str(obs)])
+        print('OBS:', obs, 'Accuracy:', accuracy,'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    accuracy, precision, recall, fscore = calculate_all_metrics(blocks['full'])
+    print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+
+    print('Hanoi results')
+    for obs in OBS:
+        accuracy, precision, recall, fscore = calculate_all_metrics(hanoi[str(obs)])
+        print('OBS:', obs, 'Accuracy:', accuracy,'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    accuracy, precision, recall, fscore = calculate_all_metrics(hanoi['full'])
+    print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+
+    print('SkGrid results')
+    for obs in OBS:
+        accuracy, precision, recall, fscore = calculate_all_metrics(skgrid[str(obs)])
+        print('OBS:', obs, 'Accuracy:', accuracy,'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    accuracy, precision, recall, fscore = calculate_all_metrics(skgrid['full'])
+    print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+
+
+
+
 def run_all_domains(train=True, recog=Recognizer()):
     blocks = run_experiments_domain(recog,BLOCKS,train,True)
     hanoi = run_experiments_domain(recog,HANOI,train,True)
@@ -139,5 +244,6 @@ def run_all_domains(train=True, recog=Recognizer()):
 
 if __name__ == "__main__":
     #run_experiments(False, True)
-    run_all_domains(train=False, recog=Recognizer())
+    #run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value)) 
+    run_all_domains_metrics(train=False, recog=StateQmaxRecognizer())
     
