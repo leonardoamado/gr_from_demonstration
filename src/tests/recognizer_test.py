@@ -23,8 +23,9 @@ class RecognizerTest(unittest.TestCase):
     def setUp(self):
         print("Unit tests for the recognizer")
 
+    @skip
     def train_recognizer_in_blocks_env(self, env: Env, recog: Recognizer):
-        policies, actions = recog.train_policies(env)
+        policies, actions = recog.train_policies(env, len(env.problems))
         # Basic sanity check
         self.assertIsNotNone(policies)
         self.assertIsNotNone(actions)
@@ -102,21 +103,27 @@ class RecognizerTest(unittest.TestCase):
         for rlalgorithm in [TabularQLearner, TabularDynaQLearner, TabularPrioritisedQLearner]:
             print(f"Testing Recognizer using {rlalgorithm} training")
             recog = Recognizer(method=rlalgorithm)
-            policies, actions = recog.train_policies(env)
+            policies, actions = recog.train_policies(env, len(env.problems))
             correct_goal_index = 1
             traj = self.generate_observations(env, correct_goal_index)
             print(f"Observations are {traj}")
-            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=len(env.problems))
             self.assertEqual(goal, correct_goal_index)
             self.assertTrue(success)
             self.assertIsNotNone(rankings)
             print(rankings)
             self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
 
+    # @skip
     def test_state_action_recognizer_evaluation(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         training_recognizer = Recognizer()
-        policies, actions = training_recognizer.train_policies(env)
+        # policies, actions = training_recognizer.train_policies(env, len(env.problems))
+        try:
+            policies, actions = training_recognizer.load_policies_from_file(ml.common.ROOT_DIR+'/output/blocks_gr/actions.pkl', ml.common.ROOT_DIR+'/output/blocks_gr/policies.pkl')
+        except FileNotFoundError:
+            print("Policy files not found, training new ones")
+            policies, actions = training_recognizer.train_policies(env, len(env.problems))
         for evaluation in [kl_divergence_norm_softmax, trajectory_q_value, soft_divergence_point  # , 
                            # divergence_point  # divergence point is not brilliant
                            ]:
@@ -125,37 +132,47 @@ class RecognizerTest(unittest.TestCase):
             correct_goal_index = 1
             traj = self.generate_observations(env, correct_goal_index)
             print(f"Observations are {traj}")
-            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+            success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=len(env.problems))
             self.assertEqual(goal, correct_goal_index)
             self.assertTrue(success)
             self.assertIsNotNone(rankings)
             print(rankings)
             self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
 
-    @skip
-    def test_action_recognition_blocks(self):
+    # @skip
+    def test_state_recognition_blocks(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog = StateQmaxRecognizer()
-        policies, actions = recog.train_policies(env)
+        # policies, actions = recog.train_policies(env, len(env.problems))
+        try:
+            policies, actions = recog.load_policies_from_file(ml.common.ROOT_DIR+'/output/blocks_gr/actions.pkl', ml.common.ROOT_DIR+'/output/blocks_gr/policies.pkl')
+        except FileNotFoundError:
+            print("Policy files not found, training new ones")
+            policies, actions = recog.train_policies(env, len(env.problems))
         correct_goal_index = 1
         traj = self.generate_observations(env, correct_goal_index)
         print(f"Observations are {traj}")
-        success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+        success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=len(env.problems))
         self.assertEqual(goal, correct_goal_index)
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
         print(rankings)
         self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
-    @skip
-    def test_state_recognition_blocks(self):
+    # @skip
+    def test_action_recognition_blocks(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog = ActionQmaxRecognizer()
-        policies, actions = recog.train_policies(env)
+        # policies, actions = recog.train_policies(env, len(env.problems))
+        try:
+            policies, actions = recog.load_policies_from_file(ml.common.ROOT_DIR+'/output/blocks_gr/actions.pkl', ml.common.ROOT_DIR+'/output/blocks_gr/policies.pkl')
+        except FileNotFoundError:
+            print("Policy files not found, training new ones")
+            policies, actions = recog.train_policies(env, len(env.problems))
         correct_goal_index = 1
         traj = self.generate_observations(env, correct_goal_index)
         print(f"Observations are {traj}")
-        success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=3)
+        success, goal, rankings = recog.recognize_process(env, policies, actions, traj, real_goal=correct_goal_index, n_goals=len(env.problems))
         print(rankings)
         self.assertEqual(goal, correct_goal_index)
         self.assertTrue(success)
@@ -166,9 +183,9 @@ class RecognizerTest(unittest.TestCase):
     def test_parallel_training(self):
         env = PDDLEnv(ml.common.ROOT_DIR+'/output/blocks_gr/blocks_gr.pddl', ml.common.ROOT_DIR+'/output/blocks_gr/problems/', raise_error_on_invalid_action=True, dynamic_action_space=True)
         recog1 = Recognizer()
-        policies1, actions1 = recog1.train_policies(env)
+        policies1, actions1 = recog1.train_policies(env, len(env.problems))
         recog2 = Recognizer()
-        policies2, actions2 = recog2.train_parallel(env)
+        policies2, actions2 = recog2.train_parallel(env, len(env.problems))
         self.assertEqual(actions1, actions2)
         for i, policy in enumerate(policies1):
             initial_state, _ = solve_fset(env.problems[i].reset())

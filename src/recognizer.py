@@ -146,6 +146,15 @@ class Recognizer:
             result_list.append((correct, goal, rankings))
         return result_list
 
+    def load_policies_from_file(self, actions_file: str, policies_file: str):
+        with open(policies_file, 'rb') as file:
+            self.policies = dill.load(file)
+        with open(actions_file, 'rb') as file:
+            self.actions = dill.load(file)
+        for policy in self.policies:
+            policy.q_table = rebuild_qtable(policy.q_table)
+        return self.policies, self.actions
+
     ''' TODO FRM: Justify this or remove altogether
     Performs a dummy goal recognition process, where observations are not considered.
 
@@ -210,7 +219,7 @@ class Recognizer:
             divergence = self.evaluate_goal(obs, policies[n], actions)
             divergences.append(divergence)
         print(divergences)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[0])
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[1])
         div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
@@ -303,7 +312,7 @@ class StateQmaxRecognizer(Recognizer):
         print(observation_Qs)
         observation_Qs = np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0], reverse=True)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1], reverse=True)
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
@@ -364,7 +373,7 @@ class ActionQmaxRecognizer(Recognizer):
         print(observation_Qs)
         observation_Qs = np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[0], reverse=True)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1], reverse=True)
         div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
