@@ -191,7 +191,7 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
     skgrid = run_experiments_domain_all_metrics(recog, SKGRID, train)
 
     if file:
-        file = open(file, 'w')
+        file = open(file, 'a')
     print(f"******  Results for {recog} ******")
     file.write(f"******  Results for {recog} ******")
 
