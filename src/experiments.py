@@ -178,10 +178,13 @@ def calculate_all_metrics(obs_metrics):
     precision = 0
     recall = 0
     fscore = 0
-    accuracy = (obs_metrics['TP'] + obs_metrics['TN'])/ obs_metrics['len']
+    accuracy = (obs_metrics['TP'] + obs_metrics['TN']) / obs_metrics['len']
     precision = obs_metrics['TP'] / (obs_metrics['TP'] + obs_metrics['FP'])
     recall = obs_metrics['TP'] / (obs_metrics['TP'] + obs_metrics['FN'])
-    fscore = (2 * precision * recall) / (precision + recall)
+    if precision + recall != 0:
+        fscore = (2 * precision * recall) / (precision + recall)
+    else:
+        fscore = 0
     return accuracy, precision, recall, fscore
 
 
