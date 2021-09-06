@@ -205,8 +205,8 @@ class Recognizer:
 
     @return a goal
     '''
-    def recognize_process(self, env: Env, policies: Collection[RLAgent], actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
-        divergences = []
+    def recognize_process(self, env: Env, policies: Collection[RLAgent], actions: Collection[Literal], obs: List[Tuple], real_goal: int, n_goals: int = 3) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+        scores = []
         list_of_goals = []
         for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
             for pred in tup1[0]:
@@ -216,11 +216,11 @@ class Recognizer:
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-            divergence = self.evaluate_goal(obs, policies[n], actions)
-            divergences.append(divergence)
-        print(divergences)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(divergences)), key=lambda tup: tup[1])
-        div, goal = min((div, goal) for (goal, div) in enumerate(divergences))
+            score = self.evaluate_goal(obs, policies[n], actions)
+            scores.append(score)
+        print(scores)
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(scores)), key=lambda tup: tup[1])
+        div, goal = min((div, goal) for (goal, div) in enumerate(scores))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
@@ -287,7 +287,7 @@ class StateQmaxRecognizer(Recognizer):
     def __init__(self, method: RLAgent = TabularQLearner):
         super().__init__(method=method, evaluation=self.evaluate_goal)
 
-    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: List[Tuple], real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         observation_Qs = []
         list_of_goals = []
         for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
@@ -298,22 +298,22 @@ class StateQmaxRecognizer(Recognizer):
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-        # for n in range(n_goals):
-        #     env.fix_problem_index(n)
-        #     init, _ = env.reset()
-        #     list_of_goals.append(init.goal)
-        #     observation_q = self.evaluate_goal(obs, policies[n], actions)
-        #     observation_Qs.append(observation_q)
-        for state, _ in obs:
-            stateQs = [policy.get_max_q(state) for policy in policies]
-            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
-            # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
-            observation_Qs.append(stateQs)
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+            observation_q = self.evaluate_goal(obs, policies[n], actions)
+            observation_Qs.append(observation_q)
+        #  # The code below was when we did it observation by observation
+        # for state, _ in obs:
+        #     stateQs = [policy.get_max_q(state) for policy in policies]
+        #     # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+        #     # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
+        #     observation_Qs.append(stateQs)
+        # observation_Qs = -np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        observation_Qs = np.sum(observation_Qs, axis=0)
-        print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1], reverse=True)
-        div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1])
+        div, goal = min((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
@@ -322,7 +322,7 @@ class StateQmaxRecognizer(Recognizer):
         obs_q = 0
         for state, _ in obs:
             obs_q += policy.get_max_q(state)
-        return obs_q
+        return -obs_q
 
 
 class ActionQmaxRecognizer(Recognizer):
@@ -331,7 +331,7 @@ class ActionQmaxRecognizer(Recognizer):
     def __init__(self, method: RLAgent = TabularQLearner):
         super().__init__(method=method, evaluation=self.evaluate_goal)
 
-    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: Collection, real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
+    def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: List[Tuple], real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         observation_Qs = []
         list_of_goals = []
         for tup1 in obs:  # TODO This is a hack due to PDDLGym's initialization
@@ -342,48 +342,45 @@ class ActionQmaxRecognizer(Recognizer):
             env.fix_problem_index(n)
             init, _ = env.reset()
             list_of_goals.append(init.goal)
-        # for n in range(n_goals):
-        #     env.fix_problem_index(n)
-        #     init, _ = env.reset()
-        #     list_of_goals.append(init.goal)
-        #     observation_q = self.evaluate_goal(obs, policies[n], actions)
-        #     observation_Qs.append(observation_q)
-        for _, action in obs:
-            action_index = actions.index(action)
-            statesForAction = {}
-            for policy in policies:
-                statesForAction[policy] = [state for state in policy.q_table.keys()
-                                           if policy.policy(state) == action_index]
-                # print(f"States for action: {len(statesForAction[policy])}")
-                # print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
+        for n in range(n_goals):
+            env.fix_problem_index(n)
+            init, _ = env.reset()
+            list_of_goals.append(init.goal)
+            observation_q = self.evaluate_goal(obs, policies[n], actions)
+            observation_Qs.append(observation_q)
+        #  # The code below was when we did it observation by observation
+        # for _, action in obs:
+        #     action_index = actions.index(action)
+        #     statesForAction = {}
+        #     for policy in policies:
+        #         statesForAction[policy] = [state for state in policy.q_table.keys()
+        #                                    if policy.policy(state) == action_index]
+        #         # print(f"States for action: {len(statesForAction[policy])}")
+        #         # print(f"Q-values: {[policy.get_max_q(state) for state in statesForAction[policy]]}")
 
-            # stateQs = [np.average([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
-            stateMaxQs = {policy: [0]+([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies}  # We need to have a zero here to ensure we have something in case there are no states
-            # stateMaxQs = {}
-            # for policy in policies:
-            #     if statesForAction[policy]:
-            #         stateMaxQs[policy] = [0]
-            #     else:
-            #         stateMaxQs[policy] = [policy.get_max_q(state) for state in statesForAction[policy]]
-            stateQs = [np.max(stateMaxQs[policy]) for policy in policies]
-            # stateQs = [np.max([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
-            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
-            # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
-            observation_Qs.append(stateQs)
+        #     stateMaxQs = {policy: [0]+([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies}  # We need to have a zero here to ensure we have something in case there are no states
+        #     stateQs = [np.max(stateMaxQs[policy]) for policy in policies]
+        #     # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+        #     # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
+        #     observation_Qs.append(stateQs)
+        # observation_Qs = -np.sum(observation_Qs, axis=0)
         print(observation_Qs)
-        observation_Qs = np.sum(observation_Qs, axis=0)
-        print(observation_Qs)
-        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1], reverse=True)
-        div, goal = max((div, goal) for (goal, div) in enumerate(observation_Qs))
+        rankings = sorted(((goal, div) for (goal, div) in enumerate(observation_Qs)), key=lambda tup: tup[1])
+        div, goal = min((div, goal) for (goal, div) in enumerate(observation_Qs))
         print(f'Most likely goal is: {goal} with metric value {self.evaluate_goal}: {div}')
         print('Correct prediction:', goal == real_goal)
         return goal == real_goal, goal, rankings
 
     def evaluate_goal(self, obs: List[Tuple], policy: RLAgent, actions: Collection[Literal]) -> float:
         obs_q = 0
-        for state, _ in obs:
-            obs_q += policy.get_max_q(state)
-        return obs_q
+        for _, action in obs:
+            action_index = actions.index(action)
+            statesForAction = [state for state in policy.q_table.keys()
+                               if policy.policy(state) == action_index]
+            stateMaxQs = [0]+([policy.get_max_q(state) for state in statesForAction])
+            stateQ = np.max(stateMaxQs)
+            obs_q += stateQ
+        return -obs_q  # Invert this for minimization
 
 
 def str_to_literal(string):
