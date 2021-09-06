@@ -275,6 +275,6 @@ if __name__ == "__main__":
     # run_all_domains_metrics(train=True, recog=Recognizer())
     for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax), Recognizer(evaluation=divergence_point),
                        Recognizer(evaluation=soft_divergence_point), Recognizer(evaluation=trajectory_q_value),
-                       StateQmaxRecognizer(), ActionQmaxRecognizer()
+                       StateQmaxRecognizer(), ActionQmaxRecognizer(), ActionQmaxRecognizer(evaluation=action_q_values)
                        ]:
         run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')

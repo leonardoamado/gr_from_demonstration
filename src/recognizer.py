@@ -284,8 +284,10 @@ class Recognizer:
 
 class StateQmaxRecognizer(Recognizer):
     """A Goal Recognition Process that uses only states as observations"""
-    def __init__(self, method: RLAgent = TabularQLearner):
+    def __init__(self, method: RLAgent = TabularQLearner, evaluation: MethodType = None):
         super().__init__(method=method, evaluation=self.evaluate_goal)
+        if evaluation is not None:
+            self.evaluate_goal = evaluation
 
     def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: List[Tuple], real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         observation_Qs = []
@@ -328,8 +330,10 @@ class StateQmaxRecognizer(Recognizer):
 class ActionQmaxRecognizer(Recognizer):
 
     """A Goal Recognition Process that uses only actions as observations"""
-    def __init__(self, method: RLAgent = TabularQLearner):
+    def __init__(self, method: RLAgent = TabularQLearner, evaluation: MethodType = None):
         super().__init__(method=method, evaluation=self.evaluate_goal)
+        if evaluation is not None:
+            self.evaluate_goal = evaluation
 
     def recognize_process(self, env: Env, policies: RLAgent, actions: Collection[Literal], obs: List[Tuple], real_goal: int, n_goals: int) -> Tuple[bool, int, List[Tuple[int, Any]]]:
         observation_Qs = []
