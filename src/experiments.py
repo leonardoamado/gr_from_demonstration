@@ -1,6 +1,7 @@
 from recognizer import Recognizer, StateQmaxRecognizer, ActionQmaxRecognizer
 from ml.metrics import *
 #from tqdm import tqdm
+from ml.metrics import kl_divergence_norm_softmax, divergence_point, soft_divergence_point, trajectory_q_value
 
 # Define datasets here
 # Each element of this list is a goal recognition problem with 5 different observabilities
@@ -184,31 +185,48 @@ def calculate_all_metrics(obs_metrics):
     return accuracy, precision, recall, fscore
 
 
-def run_all_domains_metrics(train=True, recog=Recognizer()):
+def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
     blocks = run_experiments_domain_all_metrics(recog, BLOCKS, train)
     hanoi = run_experiments_domain_all_metrics(recog, HANOI, train)
     skgrid = run_experiments_domain_all_metrics(recog, SKGRID, train)
+
+    if file:
+        file = open(file, 'w')
+    print(f"******  Results for {recog} ******")
+    file.write(f"******  Results for {recog} ******")
 
     print('Blocks results')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(blocks[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+        if file:
+            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
     accuracy, precision, recall, fscore = calculate_all_metrics(blocks['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    if file:
+        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
 
     print('Hanoi results')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(hanoi[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+        if file:
+            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
     accuracy, precision, recall, fscore = calculate_all_metrics(hanoi['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    if file:
+        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
 
     print('SkGrid results')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(skgrid[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+        if file:
+            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
     accuracy, precision, recall, fscore = calculate_all_metrics(skgrid['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
+    if file:
+        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}')
 
 
 def run_all_domains(train=True, recog=Recognizer()):
@@ -243,5 +261,10 @@ def run_all_domains(train=True, recog=Recognizer()):
 
 if __name__ == "__main__":
     # run_experiments(False, True)
-    # run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value)) 
+    # run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value))
     run_all_domains_metrics(train=True, recog=Recognizer())
+    for recognizer in [Recognizer(method=kl_divergence_norm_softmax), Recognizer(method=divergence_point),
+                       Recognizer(method=soft_divergence_point), Recognizer(method=trajectory_q_value),
+                       StateQmaxRecognizer(), ActionQmaxRecognizer()
+                       ]:
+        run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')

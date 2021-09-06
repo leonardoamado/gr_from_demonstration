@@ -269,6 +269,9 @@ class Recognizer:
 
         return policies, actions
 
+    def __repr__(self) -> str:
+        return f"Recognizer: {self.__class__.__name__} -- Evaluation: {self.evaluate_goal.__class__.__name__}"
+
 
 class StateQmaxRecognizer(Recognizer):
     """A Goal Recognition Process that uses only states as observations"""
