@@ -198,7 +198,7 @@ class TabularQLearner(RLAgent):
                  env: Env,
                  init_obs: Any,
                  problem: int = None,
-                 episodes: int = 10000,
+                 episodes: int = 30000,
                  decaying_eps: bool = True,
                  eps: float = 1.0,
                  alpha: float = 0.5,

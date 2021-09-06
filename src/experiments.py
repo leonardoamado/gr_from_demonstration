@@ -245,5 +245,5 @@ def run_all_domains(train=True, recog=Recognizer()):
 if __name__ == "__main__":
     #run_experiments(False, True)
     #run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value)) 
-    run_all_domains_metrics(train=False, recog=StateQmaxRecognizer())
+    run_all_domains_metrics(train=True, recog=Recognizer())
     
