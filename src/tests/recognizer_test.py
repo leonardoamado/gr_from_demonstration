@@ -137,7 +137,8 @@ class RecognizerTest(unittest.TestCase):
             self.assertTrue(success)
             self.assertIsNotNone(rankings)
             print(rankings)
-            self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
+            self.assertEqual(correct_goal_index, rankings[0][0])
+            # self.assertEqual(correct_goal_index, np.argmin(np.transpose(rankings)[1]))
 
     # @skip
     def test_state_recognition_blocks(self):
@@ -157,7 +158,8 @@ class RecognizerTest(unittest.TestCase):
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
         print(rankings)
-        self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
+        self.assertEqual(correct_goal_index, rankings[0][0])
+        # self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
     # @skip
     def test_action_recognition_blocks(self):
@@ -177,7 +179,8 @@ class RecognizerTest(unittest.TestCase):
         self.assertEqual(goal, correct_goal_index)
         self.assertTrue(success)
         self.assertIsNotNone(rankings)
-        self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
+        self.assertEqual(correct_goal_index, rankings[0][0])
+        # self.assertEqual(correct_goal_index, np.argmax(np.transpose(rankings)[1]))
 
     @skip  # This does not work because of various dependencies
     def test_parallel_training(self):
