@@ -200,6 +200,8 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
     file.write(f"******  Results for {recog} ******\n")
 
     print('Blocks results')
+    if file:
+        file.write(f"\n ** Blocks Results ** \n")
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(blocks[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
@@ -211,6 +213,8 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
         file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
 
     print('Hanoi results')
+    if file:
+        file.write(f"\n ** Hanoi Results ** \n")
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(hanoi[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
@@ -222,6 +226,8 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
         file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
 
     print('SkGrid results')
+    if file:
+        file.write(f"\n ** SkGrid Results ** \n")
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(skgrid[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
