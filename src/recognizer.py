@@ -297,7 +297,7 @@ class StateQmaxRecognizer(Recognizer):
         #     observation_Qs.append(observation_q)
         for state, _ in obs:
             stateQs = [policy.get_max_q(state) for policy in policies]
-            stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
             # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
             observation_Qs.append(stateQs)
         print(observation_Qs)
@@ -358,7 +358,7 @@ class ActionQmaxRecognizer(Recognizer):
             #         stateMaxQs[policy] = [policy.get_max_q(state) for state in statesForAction[policy]]
             stateQs = [np.max(stateMaxQs[policy]) for policy in policies]
             # stateQs = [np.max([policy.get_max_q(state) for state in statesForAction[policy]]) for policy in policies]
-            stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
+            # stateQs = stateQs/np.max(stateQs)  # Normalize stateQs
             # stateQs = np.where(stateQs == np.max(stateQs), 1, 0)  # Choose max values
             observation_Qs.append(stateQs)
         print(observation_Qs)
