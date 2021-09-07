@@ -196,47 +196,60 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
 
     if file:
         file = open(file, 'a')
+        # file.write(f"******  Results for {recog} ******\n")
+        file.write(f"# {recog} \n")
     print(f"******  Results for {recog} ******")
-    file.write(f"******  Results for {recog} ******\n")
 
     print('Blocks results')
     if file:
-        file.write(f"\n ** Blocks Results ** \n")
+        # file.write(f"\n ** Blocks Results ** \n")
+        file.write(f"\n# ** Blocks Results ** \n")
+        file.write(f'#OBS\t Acc\t Prec\t Rec\t F-S\n')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(blocks[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
         if file:
-            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            # file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            file.write(f'{obs}\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
     accuracy, precision, recall, fscore = calculate_all_metrics(blocks['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
     if file:
-        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        # file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        file.write(f'Avg\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
 
     print('Hanoi results')
     if file:
-        file.write(f"\n ** Hanoi Results ** \n")
+        # file.write(f"\n ** Hanoi Results ** \n")
+        file.write(f"\n# ** Hanoi Results ** \n")
+        file.write(f'#OBS\t Acc\t Prec\t Rec\t F-S\n')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(hanoi[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
         if file:
-            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            # file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            file.write(f'{obs}\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
     accuracy, precision, recall, fscore = calculate_all_metrics(hanoi['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
     if file:
-        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        # file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        file.write(f'Avg\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
 
     print('SkGrid results')
     if file:
-        file.write(f"\n ** SkGrid Results ** \n")
+        # file.write(f"\n ** SkGrid Results ** \n")
+        file.write(f"\n# ** SkGrid Results ** \n")
+        file.write(f'#OBS\t Acc\t Prec\t Rec\t F-S\n')
     for obs in OBS:
         accuracy, precision, recall, fscore = calculate_all_metrics(skgrid[str(obs)])
         print('OBS:', obs, 'Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
         if file:
-            file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            # file.write(f'OBS: {obs} Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+            file.write(f'{obs}\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
     accuracy, precision, recall, fscore = calculate_all_metrics(skgrid['full'])
     print('Averages - Accuracy:', accuracy, 'Precision:', precision, 'Recall:', recall, 'F-Score:', fscore)
     if file:
-        file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        # file.write(f'Averages - Accuracy: {accuracy} Precision: {precision} Recall: {recall} F-Score: {fscore}\n')
+        file.write(f'Avg\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
 
 
 def run_all_domains(train=True, recog=Recognizer()):
