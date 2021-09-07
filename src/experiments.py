@@ -282,6 +282,11 @@ def run_all_domains(train=True, recog=Recognizer()):
     print('Average precision: ', avg_full)
 
 
+#Felipe check this
+def len_experiments(folder,recog=Recognizer()):
+    results = recog.folder_opt_ratio(folder)
+    print(results)
+
 if __name__ == "__main__":
     # run_experiments(False, True)
     # run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value))
@@ -291,3 +296,6 @@ if __name__ == "__main__":
                        StateQmaxRecognizer(), ActionQmaxRecognizer(), ActionQmaxRecognizer(evaluation=action_q_values)
                        ]:
         run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
+
+    #Felipe check this
+    #len_experiments(BLOCKS[0])

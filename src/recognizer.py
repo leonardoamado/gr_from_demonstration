@@ -146,6 +146,54 @@ class Recognizer:
             result_list.append((correct, goal, rankings))
         return result_list
 
+
+    #Felipe check this
+    def folder_opt_ratio(self, folder):
+        print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
+        env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                      dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        n_goals = len(env.problems)
+
+        with open(folder + 'policies.pkl', 'rb') as file:
+            policies = dill.load(file)
+        with open(folder + 'actions.pkl', 'rb') as file:
+            actions = dill.load(file)
+        results = []
+        planner = FD()
+        for n in range(n_goals):
+            policy = policies[n]
+            policy.q_table = rebuild_qtable(policy.q_table)
+            ratio = self.compute_opt_ratio(env, policy, actions, n, planner)
+            results.append(ratio)
+        return results
+    
+    #Felipe check this
+    def compute_opt_ratio(self, env: Env, policy: RLAgent, actions: List, goal_index: int, planner, cutoff: int = 50) -> int:
+        env.fix_problem_index(goal_index)
+        init, _ = env.reset()
+        plan = planner(env.domain, init)
+        optimal_plan = len(plan)
+        
+        #Reseting just to distinguish FD planning and best_action planning
+        found_goal = False
+        cutcount = 0
+        state, _ = env.reset()
+        state = solve_fset(state.literals)
+        action = policy.best_action(state)
+
+        while not found_goal and cutcount < cutoff:
+            try:
+                obs, _, found_goal, _ = env.step(actions[action])
+                next_state = solve_fset(obs.literals)
+            except InvalidAction:
+                next_state = state
+                found_goal = False
+            action = policy.best_action(next_state)
+            cutcount += 1
+        return cutcount/optimal_plan
+
+
+
     def load_policies_from_file(self, actions_file: str, policies_file: str):
         with open(policies_file, 'rb') as file:
             self.policies = dill.load(file)
