@@ -14,7 +14,8 @@ import dill
 import numpy as np
 import argparse
 from pddlgym.core import InvalidAction, PDDLEnv
-from pddl_planner import PDDLPlanner
+# Had to comment this, not working on my machine with this line
+#from pddl_planner import PDDLPlanner
 from utils import solve_fset, rebuild_qtable
 import pddlgym
 from pddlgym.core import InvalidAction, PDDLEnv
@@ -131,9 +132,15 @@ class Recognizer:
         obs_traces = []
         n_goals = len(env.problems)
         real_goal = self.load_correct_goal(folder + 'real_hypn.dat')
-        for obs in observations:
-            with open(folder + 'obs' + str(obs) + '.pkl', "rb") as input_file:
-                obs_traces.append(pickle.load(input_file))
+        if observations == [0.5,1.0]:
+            print('Noisy Observations')
+            for obs in observations:
+                with open(folder + 'obs_noisy' + str(obs) + '.pkl', "rb") as input_file:
+                    obs_traces.append(pickle.load(input_file))
+        else:
+            for obs in observations:
+                with open(folder + 'obs' + str(obs) + '.pkl', "rb") as input_file:
+                    obs_traces.append(pickle.load(input_file))
 
         with open(folder + 'policies.pkl', 'rb') as file:
             policies = dill.load(file)
@@ -174,7 +181,7 @@ class Recognizer:
             results.append(ratio)
         return results
 
-    def compute_opt_ratio(self, env: Env, policy: RLAgent, actions: List[Literal], goal_index: int, planner: PDDLPlanner, cutoff: int = 50) -> float:
+    def compute_opt_ratio(self, env: Env, policy: RLAgent, actions: List[Literal], goal_index: int, planner, cutoff: int = 50) -> float:
         """Computes the ratio of an optimal deterministic plan with the length of a path following the learned policy.
 
         Args:

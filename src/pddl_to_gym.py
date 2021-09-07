@@ -1,3 +1,4 @@
+from copy import deepcopy
 from re import template
 import sys
 import os
@@ -11,10 +12,20 @@ import time
 import random
 import pickle
 
+BLOCKS = ['output/blocks_gr/', 'output/blocks_gr2/', 'output/blocks_gr3/', 'output/blocks_gr4/', 'output/blocks_gr5/',
+          'output/blocks_gr6/', 'output/blocks_gr7/', 'output/blocks_gr8/', 'output/blocks_gr9/', 'output/blocks_gr10/']
+
+HANOI = ['output/hanoi_gr/', 'output/hanoi_gr2/', 'output/hanoi_gr3/', 'output/hanoi_gr4/', 'output/hanoi_gr5/',
+         'output/hanoi_gr6/', 'output/hanoi_gr7/', 'output/hanoi_gr8/', 'output/hanoi_gr9/', 'output/hanoi_gr10/']
+
+SKGRID = ['output/skgrid_gr/', 'output/skgrid_gr2/', 'output/skgrid_gr3/', 'output/skgrid_gr4/', 'output/skgrid_gr5/',
+          'output/skgrid_gr6/', 'output/skgrid_gr7/', 'output/skgrid_gr8/', 'output/skgrid_gr9/', 'output/skgrid_gr10/']
+
 from pddlgym_planners.fd import FD
 
 from pddlgym.core import InvalidAction, PDDLEnv
 from utils import solve_fset
+from pddlgym.structs import LiteralConjunction, wrap_goal_literal
 
 RAISE_ERROR_ON_VALID = False
 DYNAMIC_ACTION_SPACE = True
@@ -225,6 +236,64 @@ def create_observabilities(d, output, ind=0):
         with open(output + '/' + 'obs' + str(obs) + '.pkl', "wb") as output_file:
             pickle.dump(traj_list[obs], output_file)
 
+def create_noisy_observations(d, output, ind=0):
+    print(output + '/problems')
+    print(d + "/domain.pddl")
+    env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
+    planner = FD()
+    env.fix_problem_index(ind)
+    init, _ = env.reset()
+    print(init.goal)
+    #print(f'GOAL {init.goal}')
+    
+    # traj is an action pair tuple, need to map this to state action number pair
+    plan = planner(env.domain, init)
+    traj = []
+    obs_list = [0.5, 1.0]
+    traj_list = {}
+    steps = 0
+    shift_point = random.randrange(2, len(plan)-1)
+    #shift_point = 3
+    new_return = None
+    for a in plan:
+        init, _, _, _ = env.step(a)
+        if steps == shift_point:
+            saved_state = deepcopy(init)
+            print('SHIFT', a)
+        if steps == shift_point -2:
+            new_return = deepcopy(init)
+            print('NEW_GOAL', a)
+        steps += 1
+    print(plan)
+    print(saved_state)
+    new_goal = LiteralConjunction(list(new_return.literals))
+    print(new_goal)
+    saved_state = saved_state.with_goal(new_goal)
+    print(saved_state)
+    plan2 = planner(env.domain, saved_state)
+    print(plan2)
+    print(plan)
+    #lplan = l[:shift] + l3 + l[shift-2:shift] + l[shift:]
+    new_plan_list = plan[:shift_point+1] + plan2 + plan[shift_point-1:shift_point+1] + plan[shift_point+1:]
+    print(new_plan_list)
+
+    init, _ = env.reset()
+
+    for a in new_plan_list:
+        state_action_pair = (solve_fset(init.literals), a)
+        traj.append(state_action_pair)
+        init, _, _, _ = env.step(a)
+    print(len(plan))
+    print(len(traj))
+
+    for obs in obs_list:
+        traj_list[obs] = remove_obs(traj, obs)
+        save_obs(traj_list[obs], output + '/' + 'obs_noisy' + str(obs)+'.dat')
+        with open(output + '/' + 'obs_noisy' + str(obs) + '.pkl', "wb") as output_file:
+            pickle.dump(traj_list[obs], output_file)
+
+
 def validated_gr_problem(d):
     env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                   dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -262,8 +331,10 @@ def save_obs(traj, out):
 
 if __name__ == "__main__":
     #print_task('output/skgrid_gr/domain.pddl', 'output/skgrid_gr/problems/problem1.pddl')
-    domain = 'output/skgrid_gr10'
-    if (validated_gr_problem(domain)):
-        create_observabilities(domain, domain)
+    
+    for domain in SKGRID:
+        create_noisy_observations(domain, domain)
+    #if (validated_gr_problem(domain)):
+    #    create_observabilities(domain, domain)
     # gr_to_gym_new('dummy_gr', 'output', 100)
     # TODO create a complete main here
