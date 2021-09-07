@@ -14,6 +14,7 @@ import dill
 import numpy as np
 import argparse
 from pddlgym.core import InvalidAction, PDDLEnv
+from pddl_planner import PDDLPlanner
 from utils import solve_fset, rebuild_qtable
 import pddlgym
 from pddlgym.core import InvalidAction, PDDLEnv
@@ -101,7 +102,7 @@ class Recognizer:
     The recognizer starts with the default conditions
     @return the predicted goal
     '''
-    def complete_recognition_folder(self, folder, observations=[0.1, 0.3, 0.5, 0.7, 1.0]):
+    def complete_recognition_folder(self, folder: str, observations: List[float] = [0.1, 0.3, 0.5, 0.7, 1.0]):
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
         env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                       dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -123,7 +124,7 @@ class Recognizer:
             result_list.append((correct, goal, rankings))
         return result_list
 
-    def only_recognition_folder(self, folder, observations=[0.1, 0.3, 0.5, 0.7, 1.0]):
+    def only_recognition_folder(self, folder: str, observations: List[float] = [0.1, 0.3, 0.5, 0.7, 1.0]):
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
         env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                       dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -146,9 +147,15 @@ class Recognizer:
             result_list.append((correct, goal, rankings))
         return result_list
 
+    def folder_opt_ratio(self, folder: str) -> float:
+        """Computes the optimality ratio for a set of policies in the specified folder/
 
-    #Felipe check this
-    def folder_opt_ratio(self, folder):
+        Args:
+            folder (str): the folder to compute optimality for
+
+        Returns:
+            float: [description]
+        """
         print('Recognizing domain:', folder + 'domain.pddl', 'problems:', folder + 'problems/')
         env = PDDLEnv(folder + 'domain.pddl', folder + 'problems/', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
                       dynamic_action_space=DYNAMIC_ACTION_SPACE)
@@ -166,15 +173,27 @@ class Recognizer:
             ratio = self.compute_opt_ratio(env, policy, actions, n, planner)
             results.append(ratio)
         return results
-    
-    #Felipe check this
-    def compute_opt_ratio(self, env: Env, policy: RLAgent, actions: List, goal_index: int, planner, cutoff: int = 50) -> int:
+
+    def compute_opt_ratio(self, env: Env, policy: RLAgent, actions: List[Literal], goal_index: int, planner: PDDLPlanner, cutoff: int = 50) -> float:
+        """Computes the ratio of an optimal deterministic plan with the length of a path following the learned policy.
+
+        Args:
+            env (Env): An environment to execute the optimal policy on
+            policy (RLAgent): The learned policy
+            actions (List[Literal]): The action space of our problem
+            goal_index (int): index of the PDDL problem in the environment
+            planner (PDDLPlanner): a planner to generate the optimal policy
+            cutoff (int, optional): the cutoff point of following a policy. Defaults to 50.
+
+        Returns:
+            int: [description]
+        """
         env.fix_problem_index(goal_index)
         init, _ = env.reset()
         plan = planner(env.domain, init)
         optimal_plan = len(plan)
-        
-        #Reseting just to distinguish FD planning and best_action planning
+
+        # Reseting just to distinguish FD planning and best_action planning
         found_goal = False
         cutcount = 0
         state, _ = env.reset()
@@ -191,8 +210,6 @@ class Recognizer:
             action = policy.best_action(next_state)
             cutcount += 1
         return cutcount/optimal_plan
-
-
 
     def load_policies_from_file(self, actions_file: str, policies_file: str):
         with open(policies_file, 'rb') as file:

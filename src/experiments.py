@@ -83,7 +83,7 @@ def run_experiments(train=True, even_punish=False):
     print('Average accuracy: ', avg_full)
 
 
-def run_experiments_domain(recog, domain, train=True, even_punish=False):
+def run_experiments_domain(recog: Recognizer, domain: List[str], train=True, even_punish=False):
     # recog = Recognizer(evaluation=soft_divergence_point)
     domain_results = dict()
     for obs in OBS:
@@ -136,7 +136,7 @@ def measure_confusion(r_output):
     return int(prediction), fn, fp, tn
 
 
-def run_experiments_domain_all_metrics(recog, domain, train=True):
+def run_experiments_domain_all_metrics(recog: Recognizer, domain: List[str], train=True):
     # recog = Recognizer(evaluation=soft_divergence_point)
     domain_results = dict()
     for obs in OBS:
@@ -148,6 +148,7 @@ def run_experiments_domain_all_metrics(recog, domain, train=True):
         domain_results[key]['FN'] = 0
         domain_results[key]['TN'] = 0
         domain_results[key]['len'] = 0
+        # domain_results[key]['opt'] = 0
     for folder in domain:
         '''
         results is a list of tuples r_OBS
@@ -158,7 +159,7 @@ def run_experiments_domain_all_metrics(recog, domain, train=True):
         else:
             results = recog.only_recognition_folder(folder, OBS)
         for r, obs in zip(results, OBS):
-            tp, fn, fp, tn = measure_confusion(r)       
+            tp, fn, fp, tn = measure_confusion(r)      
             domain_results[str(obs)]['TP'] += tp
             domain_results[str(obs)]['FP'] += fp
             domain_results[str(obs)]['FN'] += fn
@@ -201,6 +202,7 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
     print(f"******  Results for {recog} ******")
 
     print('Blocks results')
+    print(f'Optimality Ratio: {recog.folder_opt_ratio(BLOCKS[0])}')
     if file:
         # file.write(f"\n ** Blocks Results ** \n")
         file.write(f"\n# ** Blocks Results ** \n")
@@ -218,6 +220,7 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
         file.write(f'Avg\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
 
     print('Hanoi results')
+    print(f'Optimality Ratio: {recog.folder_opt_ratio(HANOI[0])}')
     if file:
         # file.write(f"\n ** Hanoi Results ** \n")
         file.write(f"\n# ** Hanoi Results ** \n")
@@ -235,6 +238,7 @@ def run_all_domains_metrics(train=True, recog=Recognizer(), file=None):
         file.write(f'Avg\t{accuracy:.2f}\t{precision:.2f}\t{recall:.2f}\t{fscore:.2f}\n')
 
     print('SkGrid results')
+    print(f'Optimality Ratio: {recog.folder_opt_ratio(SKGRID[0])}')
     if file:
         # file.write(f"\n ** SkGrid Results ** \n")
         file.write(f"\n# ** SkGrid Results ** \n")
@@ -282,11 +286,6 @@ def run_all_domains(train=True, recog=Recognizer()):
     print('Average precision: ', avg_full)
 
 
-#Felipe check this
-def len_experiments(folder,recog=Recognizer()):
-    results = recog.folder_opt_ratio(folder)
-    print(results)
-
 if __name__ == "__main__":
     # run_experiments(False, True)
     # run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value))
@@ -296,6 +295,3 @@ if __name__ == "__main__":
                        StateQmaxRecognizer(), ActionQmaxRecognizer(), ActionQmaxRecognizer(evaluation=action_q_values)
                        ]:
         run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
-
-    #Felipe check this
-    #len_experiments(BLOCKS[0])
