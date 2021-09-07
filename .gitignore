@@ -6,6 +6,8 @@ __pycache__/
 .ipynb_checkpoints/
 src/output/*
 
+results.txt
+
 # planners downloaded from pddlgym_planners
 FF-v2.3/
 FD/
