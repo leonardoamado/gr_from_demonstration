@@ -1,6 +1,7 @@
+from ml.rl import TabularDynaQLearner
 from recognizer import Recognizer, StateQmaxRecognizer, ActionQmaxRecognizer
 from ml.metrics import *
-#from tqdm import tqdm
+# from tqdm import tqdm
 from ml.metrics import kl_divergence_norm_softmax, divergence_point, soft_divergence_point, trajectory_q_value
 
 # Define datasets here
@@ -16,8 +17,8 @@ SKGRID = ['output/skgrid_gr/', 'output/skgrid_gr2/', 'output/skgrid_gr3/', 'outp
 
 OBS = [0.1, 0.3, 0.5, 0.7, 1.0]
 
-#USE THIS FOR NOISY
-#OBS = [0.5, 1.0]
+# USE THIS FOR NOISY
+# OBS = [0.5, 1.0]
 
 
 class Experiment:
@@ -292,15 +293,25 @@ def run_all_domains(train=True, recog=Recognizer()):
 if __name__ == "__main__":
     # run_experiments(False, True)
     # run_all_domains(train=False, recog=Recognizer(evaluation=trajectory_q_value))
-    
-    # I used this to test noise
-    run_all_domains_metrics(train=False, recog=Recognizer())
-    
-    #recog = Recognizer()
-    #results = recog.only_recognition_folder(BLOCKS[1], [0.5,1.0])
 
-    for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax), Recognizer(evaluation=divergence_point),
-                       Recognizer(evaluation=soft_divergence_point), Recognizer(evaluation=trajectory_q_value),
-                       StateQmaxRecognizer(), ActionQmaxRecognizer(), ActionQmaxRecognizer(evaluation=action_q_values)
+    # I used this to test noise
+    # run_all_domains_metrics(train=False, recog=Recognizer())
+
+    # recog = Recognizer()
+    # results = recog.only_recognition_folder(BLOCKS[1], [0.5,1.0])
+
+    for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax),
+                    #    Recognizer(evaluation=soft_divergence_point),
+                    #    Recognizer(evaluation=trajectory_q_value),
+                    #    StateQmaxRecognizer(),
+                    #    ActionQmaxRecognizer(),
+                       # ActionQmaxRecognizer(evaluation=action_q_values)
                        ]:
-        run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
+        run_all_domains_metrics(train=True, recog=recognizer, file='results.txt')
+    # for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax, method=TabularDynaQLearner),
+    #                    Recognizer(evaluation=soft_divergence_point, method=TabularDynaQLearner),
+    #                    Recognizer(evaluation=trajectory_q_value, method=TabularDynaQLearner),
+    #                    StateQmaxRecognizer(method=TabularDynaQLearner),
+    #                    ActionQmaxRecognizer(method=TabularDynaQLearner),
+    #                    ]:
+    #     run_all_domains_metrics(train=True, recog=recognizer, file='results.txt')

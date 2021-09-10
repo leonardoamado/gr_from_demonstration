@@ -319,7 +319,7 @@ class Recognizer:
             print(f"Training policy for goal {n}")
             while not done:
                 try:
-                    policy.learn()
+                    policy.learn(forced_init=False)
                     done = True
                 except ValueError as e:
                     print(e)
@@ -351,7 +351,7 @@ class Recognizer:
         return policies, actions
 
     def __repr__(self) -> str:
-        return f"Recognizer: {self.__class__.__name__} -- Evaluation: {self.evaluate_goal.__name__}"
+        return f"Recognizer: {self.__class__.__name__} -- Evaluation: {self.evaluate_goal.__name__} -- Trainer: {self.method.__class__.__name__}"
 
 
 class StateQmaxRecognizer(Recognizer):

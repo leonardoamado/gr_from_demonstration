@@ -14,6 +14,7 @@ from pddlgym.structs import Literal
 from ml.common import GOAL_REWARD
 from ml.common_functions import check_for_partial_goals
 from utils import solve_fset
+
 from pddlgym_planners.fd import FD
 from tqdm import tqdm
 from math import log2, exp
@@ -198,7 +199,7 @@ class TabularQLearner(RLAgent):
                  env: Env,
                  init_obs: Any,
                  problem: int = None,
-                 episodes: int = 30000,
+                 episodes: int = 500,
                  decaying_eps: bool = True,
                  eps: float = 1.0,
                  alpha: float = 0.5,
@@ -230,10 +231,10 @@ class TabularQLearner(RLAgent):
         self.patience = 400000
         if decaying_eps:
             def epsilon():
-                if self.step == 0:
-                    self.c_eps = max(self.c_eps - self.decay, 0.1)
-                else:
-                    self.c_eps = max((self.episodes - self.step)/self.episodes, 0.01)
+                # if self.step == 0:
+                #     self.c_eps = max(self.c_eps - self.decay, 0.1)
+                # else:
+                self.c_eps = max((self.episodes - self.step)/self.episodes, 0.01)
 
                 return self.c_eps
             self.eps = epsilon
@@ -452,6 +453,8 @@ class TabularQLearner(RLAgent):
             if episode_r > max_r:
                 max_r = episode_r
                 # print("New all time high reward:", episode_r)
+                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
+            if (n + 1) % 100 == 0:
                 tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
             if (n + 1) % 1000 == 0:
                 tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
