@@ -227,7 +227,7 @@ class Recognizer:
             policy.q_table = rebuild_qtable(policy.q_table)
         return self.policies, self.actions
 
-    ''' TODO FRM: Justify this or remove altogether
+    '''
     Performs a dummy goal recognition process, where observations are not considered.
 
     The first goal is considered the correct one and a plan is computed for the goal

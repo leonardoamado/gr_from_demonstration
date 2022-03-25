@@ -328,12 +328,164 @@ def save_obs(traj, out):
         new_obs.write('\n')
     new_obs.close()
 
+def parse_obs_dat(domain):
+    with open(domain + 'obs_noisy1.0.dat', "rb") as input_file:
+        lines = input_file.readlines()
+        for l in lines:
+            line = str(l)
+            action = line.split(';')[-1]
+            splitted = line.split(';')[0].split(' ')
+            at_str = splitted[0]
+            #print(at_str, ':', action )
+            pos_from = at_str.split(',')[1].split(':')[0]
+            x = int(pos_from.split('-')[1])
+            y = int(pos_from.split('-')[2])
+            if 'dir-down' in action:
+                direction = 'dir-down'
+                y += 1
+            if 'dir-up' in action:
+                direction = 'dir-up'
+                y -= 1
+            if 'dir-right' in action:
+                direction = 'dir-right'
+                x += 1
+            if 'dir-left' in action:
+                direction = 'dir-left'
+                x -= 1
+            pos_to = 'pos-' + str(x) + '-' + str(y)
+            print('(move player-01', pos_from, pos_to, direction + ')')
 
+def get_length():
+    length_blocks = []
+    length_hanoi = []
+    length_grid = []
+    ind = 0
+    planner = FD()
+    for d in BLOCKS:
+        env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env.fix_problem_index(ind)
+        init, _ = env.reset()
+        plan = planner(env.domain, init)
+        length_blocks.append(len(plan))
+
+    for d in HANOI:
+        env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env.fix_problem_index(ind)
+        init, _ = env.reset()
+        plan = planner(env.domain, init)
+        length_hanoi.append(len(plan))
+    
+    for d in SKGRID:
+        env = PDDLEnv(d + "/domain.pddl", d + '/problems', raise_error_on_invalid_action=RAISE_ERROR_ON_VALID,
+                  dynamic_action_space=DYNAMIC_ACTION_SPACE)
+        env.fix_problem_index(ind)
+        init, _ = env.reset()
+        plan = planner(env.domain, init)
+        length_grid.append(len(plan))
+    print('Blocks - AVG:',sum(length_blocks)/len(length_blocks), 'MIN:', min(length_blocks), 'MAX:', max(length_blocks)  )
+    print('Hanoi - AVG:',sum(length_hanoi)/len(length_hanoi), 'MIN:', min(length_hanoi), 'MAX:', max(length_hanoi)  )
+    print('Grid - AVG:',sum(length_grid)/len(length_grid), 'MIN:', min(length_grid), 'MAX:', max(length_grid)  )     
+    # traj is an action pair tuple, need to map this to state action number pair
+    #plan = planner(env.domain, init)
+
+def parse_obs_dat(domain):
+    with open(domain + 'obs_noisy1.0.dat', "rb") as input_file:
+        lines = input_file.readlines()
+        for l in lines:
+            line = str(l)
+            action = line.split(';')[-1]
+            splitted = line.split(';')[0].split(' ')
+            at_str = splitted[0]
+            #print(at_str, ':', action )
+            pos_from = at_str.split(',')[1].split(':')[0]
+            x = int(pos_from.split('-')[1])
+            y = int(pos_from.split('-')[2])
+            if 'dir-down' in action:
+                direction = 'dir-down'
+                y += 1
+            if 'dir-up' in action:
+                direction = 'dir-up'
+                y -= 1
+            if 'dir-right' in action:
+                direction = 'dir-right'
+                x += 1
+            if 'dir-left' in action:
+                direction = 'dir-left'
+                x -= 1
+            pos_to = 'pos-' + str(x) + '-' + str(y)
+            print('(move player-01', pos_from, pos_to, direction + ')')
+
+def parse_obs_dat_hanoi(domain):
+    with open(domain + 'obs_noisy1.0.dat', "rb") as input_file:
+        lines = input_file.readlines()
+        for l in lines:
+            line = str(l)
+            action = line.split(';')[-1]
+            splitted = line.split(';')[0].split(' ')
+            #;move(d1:default,peg3:default)
+            disc1 = action.split(':')[0].split('(')[-1]
+            to =  action.split(':')[1].split(',')[-1]
+            #print(to)
+            for splits in splitted:
+                if 'on(' + disc1 in splits:
+                    #print(splits)
+                    fromd = splits.split(':')[1].split(',')[-1]
+                    #print(fromd)
+
+            #print(at_str, ':', action )
+            #print(disc1)
+            #pos_from = at_str.split(',')[1].split(':')[0]
+            #pos_to = 'pos-' + str(x) + '-' + str(y)
+            #print('(move player-01', pos_from, pos_to, direction + ')')
+            print('(move', disc1, fromd, to + ')')
+
+
+def parse_obs_dat_blocks(domain):
+    with open(domain + 'obs_noisy1.0.dat', "rb") as input_file:
+        lines = input_file.readlines()
+        for l in lines:
+            line = str(l)
+            action = line.split(';')[-1]
+            splitted = line.split(';')[0].split(' ')
+            #;move(d1:default,peg3:default)
+            if 'pickup' in action:
+                blocka = action.split(':')[0].split('(')[-1]
+                print('(pick-up', blocka, 'robot)')
+            if 'putdown' in action:
+                blocka = action.split(':')[0].split('(')[-1]
+                print('(put-down', blocka, 'robot)')
+            if 'unstack' in action:
+                blocka = action.split(':')[0].split('(')[-1]
+                for splits in splitted:
+                    if 'on(' + blocka in splits:
+                        #print(splits)
+                        fromd = splits.split(':')[1].split(',')[-1]
+                        #print(fromd)
+                print('(unstack', blocka, fromd, 'robot)')
+            elif 'stack' in action:
+                blocka = action.split(':')[0].split('(')[-1]
+                blockb = action.split(':')[1].split(',')[-1]
+                print('(stack', blocka, blockb, 'robot)')
+            continue
+            
+            disc1 = action.split(':')[0].split('(')[-1]
+            to =  action.split(':')[1].split(',')[-1]
+            #print(to)
+            for splits in splitted:
+                if 'on(' + disc1 in splits:
+                    #print(splits)
+                    fromd = splits.split(':')[1].split(',')[-1]
+                    #print(fromd)
+
+    
 if __name__ == "__main__":
     #print_task('output/skgrid_gr/domain.pddl', 'output/skgrid_gr/problems/problem1.pddl')
-    
-    for domain in SKGRID:
-        create_noisy_observations(domain, domain)
+    #get_length()
+    parse_obs_dat_blocks(BLOCKS[9])
+    #for domain in SKGRID:
+    #    create_noisy_observations(domain, domain)
     #if (validated_gr_problem(domain)):
     #    create_observabilities(domain, domain)
     # gr_to_gym_new('dummy_gr', 'output', 100)

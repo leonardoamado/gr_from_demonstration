@@ -67,6 +67,5 @@ class TestListElements(unittest.TestCase):
 
 if __name__ == "__main__":
 
-    # Reuth: Tests to verify that the list of possible grounded literals in consistent
     unittest.main()
     exit()

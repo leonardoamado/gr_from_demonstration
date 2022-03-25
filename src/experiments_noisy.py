@@ -15,10 +15,10 @@ HANOI = ['output/hanoi_gr/', 'output/hanoi_gr2/', 'output/hanoi_gr3/', 'output/h
 SKGRID = ['output/skgrid_gr/', 'output/skgrid_gr2/', 'output/skgrid_gr3/', 'output/skgrid_gr4/', 'output/skgrid_gr5/',
           'output/skgrid_gr6/', 'output/skgrid_gr7/', 'output/skgrid_gr8/', 'output/skgrid_gr9/', 'output/skgrid_gr10/']
 
-OBS = [0.1, 0.3, 0.5, 0.7, 1.0]
+#OBS = [0.1, 0.3, 0.5, 0.7, 1.0]
 
 # USE THIS FOR NOISY
-# OBS = [0.5, 1.0]
+OBS = [0.5, 1.0]
 
 
 class Experiment:
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                         StateQmaxRecognizer(),
                         ActionQmaxRecognizer()
                        ]:
-        run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
+        run_all_domains_metrics(train=False, recog=recognizer, file='results_noisy.txt')
     # for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax, method=TabularDynaQLearner),
     #                    Recognizer(evaluation=soft_divergence_point, method=TabularDynaQLearner),
     #                    Recognizer(evaluation=trajectory_q_value, method=TabularDynaQLearner),

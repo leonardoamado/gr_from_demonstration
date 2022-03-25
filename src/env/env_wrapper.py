@@ -246,7 +246,6 @@ class PDDLGymVecWrapper(Env):
         self._initialStates = [State(frozenset(problem.initial_state), frozenset(problem.objects), problem.goal)
                                for problem in wrapped_env.problems]
 
-        # ## Reuth: For now we skip defining this and just create a vector in the size of all ground literals -
         # ##        that should be the top cap of any vector we choose to create later on
         problem = self._problems[self._env._problem_idx]
         if only_valid_actions is True:
