@@ -319,7 +319,7 @@ class Recognizer:
             print(f"Training policy for goal {n}")
             while not done:
                 try:
-                    policy.learn(forced_init=False)
+                    policy.learn()
                     done = True
                 except ValueError as e:
                     print(e)
