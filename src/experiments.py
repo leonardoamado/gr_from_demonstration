@@ -299,14 +299,16 @@ if __name__ == "__main__":
 
     # recog = Recognizer()
     # results = recog.only_recognition_folder(BLOCKS[1], [0.5,1.0])
+    recognizer = Recognizer(evaluation=kl_divergence_norm_softmax)
+    run_all_domains_metrics(train=True, recog=recognizer, file='results.txt')
 
-    for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax),
-                        Recognizer(evaluation=soft_divergence_point),
-                        Recognizer(evaluation=trajectory_q_value),
-                        StateQmaxRecognizer(),
-                        ActionQmaxRecognizer()
-                       ]:
-        run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
+    # for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax),
+    #                     Recognizer(evaluation=soft_divergence_point),
+    #                     Recognizer(evaluation=trajectory_q_value),
+    #                     StateQmaxRecognizer(),
+    #                     ActionQmaxRecognizer()
+    #                    ]:
+    #     run_all_domains_metrics(train=False, recog=recognizer, file='results.txt')
     # for recognizer in [Recognizer(evaluation=kl_divergence_norm_softmax, method=TabularDynaQLearner),
     #                    Recognizer(evaluation=soft_divergence_point, method=TabularDynaQLearner),
     #                    Recognizer(evaluation=trajectory_q_value, method=TabularDynaQLearner),

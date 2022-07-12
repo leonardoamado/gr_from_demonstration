@@ -23,6 +23,7 @@ from queue import PriorityQueue
 # This are for typing (we may want to move this elsewhere)
 State = Any
 
+
 # This will be an implementation of Q-Learning with Gym
 
 # use epsilon-greedy policies instead of 1 for maximum, 0 otherwise
@@ -74,7 +75,7 @@ def softmax(values: List[float]) -> List[float]:
     Returns:
         np.array: softmax probabilities
     """
-    return [(exp(q))/sum([exp(_q) for _q in values]) for q in values]
+    return [(exp(q)) / sum([exp(_q) for _q in values]) for q in values]
 
 
 class RLAgent:
@@ -83,6 +84,7 @@ class RLAgent:
     RL agent. This is currently not much in use, but is
     recommended as development goes on.
     """
+
     def __init__(self,
                  env: Env,
                  problem: int = None,
@@ -93,7 +95,8 @@ class RLAgent:
                  decay: float = 0.00005,
                  gamma: float = 0.99,
                  action_list: Collection[Literal] = None,
-                 rand: Random = Random()):
+                 rand: Random = Random(),
+                 is_optimistic_initialization: bool = True):
         self.env = env
         self.problem = problem
         self.episodes = episodes
@@ -106,6 +109,7 @@ class RLAgent:
         self._random = rand
         if problem:
             self.env.fix_problem_index(problem)
+        self.is_optimistic_initialization = is_optimistic_initialization
 
     @abstractmethod
     def agent_start(self, state: State) -> Any:
@@ -166,7 +170,7 @@ class RLAgent:
         pass
 
     @abstractmethod
-    def learn(self, forced_init: bool = True, init_threshold: int = 20):
+    def learn(self, init_threshold: int = 20):
         pass
 
     def __getitem__(self, state: State) -> Any:
@@ -195,6 +199,7 @@ class TabularQLearner(RLAgent):
     """
     A simple Tabular Q-Learning agent.
     """
+
     def __init__(self,
                  env: Env,
                  init_obs: Any,
@@ -209,8 +214,11 @@ class TabularQLearner(RLAgent):
                  rand: Random = Random(),
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
+                 is_optimistic_initialization: bool = True,
                  **kwargs):
-        super().__init__(env, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand)
+        super().__init__(env, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha,
+                         decay=decay, gamma=gamma, action_list=action_list, rand=rand,
+                         is_optimistic_initialization=is_optimistic_initialization)
         self.valid_only = valid_only
         if not action_list:
             self.action_list = list(env.action_space.all_ground_literals(init_obs, valid_only=False))
@@ -234,9 +242,10 @@ class TabularQLearner(RLAgent):
                 # if self.step == 0:
                 #     self.c_eps = max(self.c_eps - self.decay, 0.1)
                 # else:
-                self.c_eps = max((self.episodes - self.step)/self.episodes, 0.01)
+                self.c_eps = max((self.episodes - self.step) / self.episodes, 0.01)
 
                 return self.c_eps
+
             self.eps = epsilon
         else:
             self.eps = lambda: eps
@@ -270,7 +279,7 @@ class TabularQLearner(RLAgent):
     def epsilon_greedy_policy(self, state: State) -> Any:
         eps = self.eps()
         if self._random.random() <= eps:
-            action = self._random.randint(0, self.actions-1)
+            action = self._random.randint(0, self.actions - 1)
         else:
             action = self.policy(state)
         return action
@@ -306,13 +315,13 @@ class TabularQLearner(RLAgent):
 
     def add_new_state(self, state: State):
         # self.q_table[state] = [1. for _ in range(self.actions)]
-        self.q_table[state] = [0.]*self.actions
+        self.q_table[state] = [0.] * self.actions
 
     def get_all_q_values(self, state: State) -> List[float]:
         if state in self.q_table:
             return self.q_table[state]
         else:
-            return [0.]*self.actions
+            return [0.] * self.actions
 
     def best_action(self, state: State) -> int:
         if state not in self.q_table:
@@ -362,7 +371,7 @@ class TabularQLearner(RLAgent):
         max_q = self.get_max_q(state)
         old_q = self.get_q_value(self.last_state, self.last_action)
 
-        td_error = self.gamma*max_q - old_q
+        td_error = self.gamma * max_q - old_q
         new_q = old_q + self.alpha * (reward + td_error)
 
         self.set_q_value(self.last_state, self.last_action, new_q)
@@ -397,24 +406,23 @@ class TabularQLearner(RLAgent):
             action = self.action_list.index(pstep)
             self.set_q_value(state, action, 100)  # I'm putting 1 as the reward not to bias this too much
             obs, reward, done, _ = self.env.step(self.action_list[action])
-        assert(done)
+        assert (done)
 
-    def learn(self, forced_init: bool = True, init_threshold: int = 20):
-        log_file = f'logs/tabular_q_learning_{datetime.datetime.now()}'
+    def learn(self, init_threshold: int = 20):
         tsteps = 50
         done_times = 0
         patience = 0
         converged_at = None
         max_r = float("-inf")
         init, _ = self.env.reset()
-        # planner = FD()
-        # plan = planner(self.env.domain, init)
-        # print(len(plan))
-        if forced_init:
+
+        print(f"is_opt:{self.is_optimistic_initialization}")
+        if self.is_optimistic_initialization:
             self.plan_optimistic_initialization(init)
         print('LEARNING FOR GOAL:', init.goal)
         print(f'Using {self.__class__.__name__}')
-        tq = tqdm(range(self.episodes), postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
+        tq = tqdm(range(self.episodes),
+                  postfix=f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
         for n in tq:
             self.step = n
             episode_r = 0
@@ -453,11 +461,14 @@ class TabularQLearner(RLAgent):
             if episode_r > max_r:
                 max_r = episode_r
                 # print("New all time high reward:", episode_r)
-                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
+                tq.set_postfix_str(
+                    f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
             if (n + 1) % 100 == 0:
-                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
+                tq.set_postfix_str(
+                    f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
             if (n + 1) % 1000 == 0:
-                tq.set_postfix_str(f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
+                tq.set_postfix_str(
+                    f"States: {len(self.q_table.keys())}. Goals: {done_times}. Eps: {self.c_eps:.3f}. MaxR: {max_r}")
                 # print(f'Episode {n+1} finished. Timestep: {tstep}. Number of states: {len(self.q_table.keys())}. Reached the goal {done_times} times during this interval. Eps = {self.c_eps}')
                 if done_times <= 10:
                     patience += 1
@@ -494,11 +505,15 @@ class TabularDynaQLearner(TabularQLearner):
                  check_partial_goals: bool = True,
                  valid_only: bool = False,
                  planning_steps: int = 10,
+                 is_optimistic_initialization: bool = True,
                  **kwargs):
         self.planning_steps = planning_steps
         self.model = {}  # model is a dictionary of dictionaries, which maps states to actions to (reward, next_state) tuples
 
-        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, **kwargs)
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps,
+                         alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand,
+                         check_partial_goals=check_partial_goals, valid_only=valid_only,
+                         is_optimistic_initialization=is_optimistic_initialization, **kwargs)
 
     def update_model(self, past_state: State, past_action, state: State, reward: float):
         if past_state not in self.model:
@@ -513,8 +528,8 @@ class TabularDynaQLearner(TabularQLearner):
             if state is None:
                 td_error = - self.get_q_value(past_state, past_action)
             else:
-                td_error = self.gamma*self.get_max_q(state) - self.get_q_value(past_state, past_action)
-            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
+                td_error = self.gamma * self.get_max_q(state) - self.get_q_value(past_state, past_action)
+            new_q = self.get_q_value(past_state, past_action) + self.alpha * (reward + td_error)
             self.set_q_value(past_state, past_action, new_q)
 
     def agent_start(self, state: State) -> Any:
@@ -544,7 +559,7 @@ class TabularDynaQLearner(TabularQLearner):
         max_q = self.get_max_q(state)
         old_q = self.get_q_value(self.last_state, self.last_action)
 
-        td_error = self.gamma*max_q - old_q
+        td_error = self.gamma * max_q - old_q
         new_q = old_q + self.alpha * (reward + td_error)
 
         self.set_q_value(self.last_state, self.last_action, new_q)
@@ -592,12 +607,16 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
                  valid_only: bool = False,
                  planning_steps: int = 10,
                  priority_theta: float = 85,  # TODO Check that this is agood threshold
+                 is_optimistic_initialization: bool = True,
                  **kwargs):
         self.pqueue = PriorityQueue()
         self.priority_theta = priority_theta
         self.inverse_model = {}  # inverse_model stores state-actions that lead to a state
 
-        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps, alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand, check_partial_goals=check_partial_goals, valid_only=valid_only, planning_steps=planning_steps, **kwargs)
+        super().__init__(env, init_obs, problem=problem, episodes=episodes, decaying_eps=decaying_eps, eps=eps,
+                         alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand,
+                         check_partial_goals=check_partial_goals, valid_only=valid_only, planning_steps=planning_steps,
+                         is_optimistic_initialization=is_optimistic_initialization, **kwargs)
 
     def update_model(self, past_state: State, past_action, state: State, reward: float):
         if past_state not in self.model:
@@ -617,11 +636,12 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
             if state is None:
                 td_error = - self.get_q_value(past_state, past_action)
             else:
-                td_error = self.gamma*self.get_max_q(state) - self.get_q_value(past_state, past_action)
-            new_q = self.get_q_value(past_state, past_action) + self.alpha*(reward + td_error)
+                td_error = self.gamma * self.get_max_q(state) - self.get_q_value(past_state, past_action)
+            new_q = self.get_q_value(past_state, past_action) + self.alpha * (reward + td_error)
             self.set_q_value(past_state, past_action, new_q)
             for back_state, back_action, back_reward in self.inverse_model[past_state]:
-                priority = abs(back_reward + self.gamma*self.get_max_q(past_state) - self.get_q_value(back_state, back_action))
+                priority = abs(
+                    back_reward + self.gamma * self.get_max_q(past_state) - self.get_q_value(back_state, back_action))
                 if priority > self.priority_theta:
                     self.pqueue.put((priority, back_state, back_action))
         # while not self.pqueue.empty():  # Empty out the queue at the end of the planning steps
@@ -644,7 +664,7 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
         old_q = self.get_q_value(self.last_state, self.last_action)
         self.update_model(self.last_state, self.last_action, state, reward)
 
-        td_error = self.gamma*max_q - old_q
+        td_error = self.gamma * max_q - old_q
         # new_q = old_q + self.alpha * (reward + td_error)
         # self.set_q_value(self.last_state, self.last_action, new_q)
         # action = self.best_action(state)
