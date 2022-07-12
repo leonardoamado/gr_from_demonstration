@@ -591,14 +591,6 @@ class TabularDynaQLearner(TabularQLearner):
 
 class TabularPrioritisedQLearner(TabularDynaQLearner):
 
-    def update_model(self, past_state: State, past_action, state: State, reward: float):
-        if past_state not in self.model:
-            self.model[past_state] = {}
-        if state not in self.inverse_model:
-            self.inverse_model[state] = []
-        self.inverse_model[state].append((past_state, past_action, reward))
-        self.model[past_state][past_action] = (state, reward)
-
     def __init__(self,
                  env: Env,
                  init_obs: Any,
@@ -625,6 +617,14 @@ class TabularPrioritisedQLearner(TabularDynaQLearner):
                          alpha=alpha, decay=decay, gamma=gamma, action_list=action_list, rand=rand,
                          check_partial_goals=check_partial_goals, valid_only=valid_only, planning_steps=planning_steps,
                          is_optimistic_initialization=is_optimistic_initialization, **kwargs)
+
+    def update_model(self, past_state: State, past_action, state: State, reward: float):
+        if past_state not in self.model:
+            self.model[past_state] = {}
+        if state not in self.inverse_model:
+            self.inverse_model[state] = []
+        self.inverse_model[state].append((past_state, past_action, reward))
+        self.model[past_state][past_action] = (state, reward)
 
     def planning_step(self):
         for i in range(self.planning_steps):
