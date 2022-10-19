@@ -1,9 +1,9 @@
 # RL for Goal Recognition
-Supplementary material for AAAI2022. This packages include the code to generate the results of our paper, besides the R&G approach. The R&G approach is not included in this package, only the necessary code to run the developed methods of our paper.
+Supplementary material for AAAI2022. This package includes the code to generate the results of our paper, besides the R&G approach. We do not include the R&G approach in this package, only the necessary code to run the methods developed in our paper.
 
 ## Setting up the environment
 This package was tested on **Python 3.6.13** and should work on **Python 3.6** or higher.
-To install requirements (works on virtualenv and conda), run:
+To install requirements (works on `virtualenv` and `conda`), run:
 ```zsh
 pip install -r requirements.txt
 ```

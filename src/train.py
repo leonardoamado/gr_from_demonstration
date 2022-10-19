@@ -1,5 +1,5 @@
 from numpy import deg2rad
-from ml.linear import LinearQLearning
+# from ml.linear import LinearQLearning
 from ml.rl import TabularQLearner
 from ml.dqn import DQN
 from pddlgym_planners.fd import FD
