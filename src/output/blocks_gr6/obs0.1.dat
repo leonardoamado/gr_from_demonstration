@@ -1,0 +1,1 @@
+clear(a:block) clear(b:block) clear(e:block) handempty(robot:robot) on(b:block,c:block) on(c:block,d:block) ontable(a:block) ontable(d:block) ontable(e:block) ;pickup(a:block)

@@ -1,0 +1,6 @@
+clear(a:block) clear(b:block) clear(c:block) clear(d:block) handempty(robot:robot) on(d:block,e:block) ontable(a:block) ontable(b:block) ontable(c:block) ontable(e:block) ;pickup(c:block)
+clear(a:block) clear(b:block) clear(d:block) handfull(robot:robot) holding(c:block) on(d:block,e:block) ontable(a:block) ontable(b:block) ontable(e:block) ;stack(c:block,d:block)
+clear(a:block) clear(b:block) clear(c:block) handempty(robot:robot) on(c:block,d:block) on(d:block,e:block) ontable(a:block) ontable(b:block) ontable(e:block) ;pickup(b:block)
+clear(a:block) clear(c:block) handfull(robot:robot) holding(b:block) on(c:block,d:block) on(d:block,e:block) ontable(a:block) ontable(e:block) ;stack(b:block,c:block)
+clear(a:block) clear(b:block) handempty(robot:robot) on(b:block,c:block) on(c:block,d:block) on(d:block,e:block) ontable(a:block) ontable(e:block) ;pickup(a:block)
+clear(b:block) handfull(robot:robot) holding(a:block) on(b:block,c:block) on(c:block,d:block) on(d:block,e:block) ontable(e:block) ;stack(a:block,b:block)

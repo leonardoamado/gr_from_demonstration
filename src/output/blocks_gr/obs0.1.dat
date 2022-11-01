@@ -1,0 +1,1 @@
+clear(b:block) clear(d:block) handempty(robot:robot) on(a:block,c:block) on(b:block,a:block) on(d:block,e:block) ontable(c:block) ontable(e:block) ;unstack(d:block)
